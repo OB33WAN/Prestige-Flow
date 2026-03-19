@@ -2,27 +2,20 @@
 name: Deploy static content to Pages
 
 on:
-  # Runs on pushes targeting the default branch
   push:
     branches: ["main"]
-
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
-# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
-# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
 concurrency:
   group: "pages"
   cancel-in-progress: false
 
 jobs:
-  # Single deploy job since we're just deploying
   deploy:
     environment:
       name: github-pages
@@ -32,75 +25,91 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Determine base path
+      - name: Rewrite root-relative paths as relative paths
         run: |
-          REPO="${{ github.event.repository.name }}"
-          OWNER="${{ github.repository_owner }}"
-          if [[ "$REPO" == "${OWNER}.github.io" ]]; then
-            echo "BASE_PATH=" >> "$GITHUB_ENV"
-            echo "User site — no subpath prefix needed."
-          else
-            echo "BASE_PATH=/${REPO}" >> "$GITHUB_ENV"
-            echo "Project site — base path: /${REPO}"
-          fi
+          python3 <<'PYEOF'
+          import glob
+          import json
+          import posixpath
+          import re
+          from urllib.parse import urlsplit, urlunsplit
 
-      - name: Rewrite root-relative paths for subdirectory deployment
-        if: env.BASE_PATH != ''
-        run: |
-          python3 << 'PYEOF'
-          import os, re, json, glob
+          print("Rewriting root-relative internal paths to deployment-safe relative paths")
 
-          BASE = os.environ["BASE_PATH"]
-          print(f"Prefixing all root-relative paths with: {BASE}")
+          def to_relative_path(path, current_dir):
+              if not path.startswith('/') or path.startswith('//'):
+                  return path
 
-          def rewrite_html(content):
-              def replacer(m):
-                  attr, path = m.group(1), m.group(2)
-                  if path.startswith('//'):
-                      return m.group(0)
-                  return f'{attr}="{BASE}{path}"'
-              return re.sub(r'(href|src|action)="(/[^"]*)"', replacer, content)
+              parsed = urlsplit(path)
+              clean_path = parsed.path
+              target = '.' if clean_path == '/' else clean_path.lstrip('/')
+              start = current_dir or '.'
+              relative = posixpath.relpath(target, start=start)
 
-          def rewrite_manifest(content):
+              if clean_path == '/':
+                  relative = './' if start == '.' else posixpath.relpath('.', start=start)
+
+              return urlunsplit(('', '', relative, parsed.query, parsed.fragment))
+
+          def rewrite_html(filepath, content):
+              current_dir = posixpath.dirname(filepath.replace('\\', '/'))
+
+              def replacer(match):
+                  attr, path = match.group(1), match.group(2)
+                  return f'{attr}="{to_relative_path(path, current_dir)}"'
+
+              return re.sub(r'(href|src|action)="(/[^\"]*)"', replacer, content)
+
+          def rewrite_manifest(filepath, content):
               try:
                   data = json.loads(content)
-                  for key in ('start_url', 'scope'):
-                      val = data.get(key, '')
-                      if val.startswith('/') and not val.startswith('//'):
-                          data[key] = BASE + ('' if val == '/' else val)
-                  return json.dumps(data, indent=2, ensure_ascii=False)
               except Exception:
                   return content
 
+              manifest_dir = posixpath.dirname(filepath.replace('\\', '/'))
+              for key in ('start_url', 'scope', 'id'):
+                  value = data.get(key, '')
+                  if isinstance(value, str) and value.startswith('/') and not value.startswith('//'):
+                      data[key] = to_relative_path(value, manifest_dir)
+
+              icons = data.get('icons')
+              if isinstance(icons, list):
+                  for icon in icons:
+                      src = icon.get('src')
+                      if isinstance(src, str) and src.startswith('/') and not src.startswith('//'):
+                          icon['src'] = to_relative_path(src, manifest_dir)
+
+              return json.dumps(data, indent=2, ensure_ascii=False) + '\n'
+
           for filepath in glob.glob('**/*.html', recursive=True):
               parts = filepath.replace('\\', '/').split('/')
-              if any(p.startswith('.') for p in parts):
+              if any(part.startswith('.') for part in parts):
                   continue
               try:
-                  with open(filepath, encoding='utf-8', errors='replace') as f:
-                      original = f.read()
-                  updated = rewrite_html(original)
+                  with open(filepath, encoding='utf-8', errors='replace') as handle:
+                      original = handle.read()
+                  updated = rewrite_html(filepath, original)
                   if updated != original:
-                      with open(filepath, 'w', encoding='utf-8') as f:
-                          f.write(updated)
+                      with open(filepath, 'w', encoding='utf-8') as handle:
+                          handle.write(updated)
                       print(f"  patched {filepath}")
-              except Exception as e:
-                  print(f"  error {filepath}: {e}")
+              except Exception as error:
+                  print(f"  error {filepath}: {error}")
 
           for filepath in glob.glob('**/manifest.json', recursive=True):
               parts = filepath.replace('\\', '/').split('/')
-              if any(p.startswith('.') for p in parts):
+              if any(part.startswith('.') for part in parts):
                   continue
               try:
-                  with open(filepath, encoding='utf-8') as f:
-                      original = f.read()
-                  updated = rewrite_manifest(original)
+                  with open(filepath, encoding='utf-8') as handle:
+                      original = handle.read()
+                  updated = rewrite_manifest(filepath, original)
                   if updated != original:
-                      with open(filepath, 'w', encoding='utf-8') as f:
-                          f.write(updated)
+                      with open(filepath, 'w', encoding='utf-8') as handle:
+                          handle.write(updated)
                       print(f"  patched {filepath}")
-              except Exception as e:
-                  print(f"  error {filepath}: {e}")
+              except Exception as error:
+                  print(f"  error {filepath}: {error}")
 
           print("Done.")
           PYEOF
