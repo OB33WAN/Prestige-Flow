@@ -9,19 +9,19 @@
   "orientation": "any",
   "icons": [
     {
-      "src": "/images/favicon.jpg",
+      "src": "/favicon.jpg",
       "sizes": "192x192",
       "type": "image/jpeg",
       "purpose": "any"
     },
     {
-      "src": "/images/logo.jpg",
+      "src": "/logo.jpg",
       "sizes": "512x512",
       "type": "image/jpeg",
       "purpose": "any"
     },
     {
-      "src": "/images/logo.jpg",
+      "src": "/logo.jpg",
       "sizes": "512x512",
       "type": "image/jpeg",
       "purpose": "maskable"
