@@ -31,13 +31,85 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
+
+      - name: Determine base path
+        run: |
+          REPO="${{ github.event.repository.name }}"
+          OWNER="${{ github.repository_owner }}"
+          if [[ "$REPO" == "${OWNER}.github.io" ]]; then
+            echo "BASE_PATH=" >> "$GITHUB_ENV"
+            echo "User site — no subpath prefix needed."
+          else
+            echo "BASE_PATH=/${REPO}" >> "$GITHUB_ENV"
+            echo "Project site — base path: /${REPO}"
+          fi
+
+      - name: Rewrite root-relative paths for subdirectory deployment
+        if: env.BASE_PATH != ''
+        run: |
+          python3 << 'PYEOF'
+          import os, re, json, glob
+
+          BASE = os.environ["BASE_PATH"]
+          print(f"Prefixing all root-relative paths with: {BASE}")
+
+          def rewrite_html(content):
+              def replacer(m):
+                  attr, path = m.group(1), m.group(2)
+                  if path.startswith('//'):
+                      return m.group(0)
+                  return f'{attr}="{BASE}{path}"'
+              return re.sub(r'(href|src|action)="(/[^"]*)"', replacer, content)
+
+          def rewrite_manifest(content):
+              try:
+                  data = json.loads(content)
+                  for key in ('start_url', 'scope'):
+                      val = data.get(key, '')
+                      if val.startswith('/') and not val.startswith('//'):
+                          data[key] = BASE + ('' if val == '/' else val)
+                  return json.dumps(data, indent=2, ensure_ascii=False)
+              except Exception:
+                  return content
+
+          for filepath in glob.glob('**/*.html', recursive=True):
+              parts = filepath.replace('\\', '/').split('/')
+              if any(p.startswith('.') for p in parts):
+                  continue
+              try:
+                  with open(filepath, encoding='utf-8', errors='replace') as f:
+                      original = f.read()
+                  updated = rewrite_html(original)
+                  if updated != original:
+                      with open(filepath, 'w', encoding='utf-8') as f:
+                          f.write(updated)
+                      print(f"  patched {filepath}")
+              except Exception as e:
+                  print(f"  error {filepath}: {e}")
+
+          for filepath in glob.glob('**/manifest.json', recursive=True):
+              parts = filepath.replace('\\', '/').split('/')
+              if any(p.startswith('.') for p in parts):
+                  continue
+              try:
+                  with open(filepath, encoding='utf-8') as f:
+                      original = f.read()
+                  updated = rewrite_manifest(original)
+                  if updated != original:
+                      with open(filepath, 'w', encoding='utf-8') as f:
+                          f.write(updated)
+                      print(f"  patched {filepath}")
+              except Exception as e:
+                  print(f"  error {filepath}: {e}")
+
+          print("Done.")
+          PYEOF
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # Upload entire repository
           path: '.'
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
