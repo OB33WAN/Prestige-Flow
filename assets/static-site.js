@@ -386,7 +386,7 @@
 
     let paymentLinkCache = null;
     let paymentLinkLoadPromise = null;
-    let productMapCache = null;
+    let productMapCache = null; // null = not loaded; {} = loaded but empty or error; {sku:…} = loaded ok
     let productMapLoadPromise = null;
 
     const getRegion = () => {
@@ -468,18 +468,21 @@
     };
 
     const loadProductMap = async () => {
-      if (productMapCache) return productMapCache;
+      if (productMapCache !== null) return productMapCache;
       if (productMapLoadPromise) return productMapLoadPromise;
       productMapLoadPromise = (async () => {
         try {
-          const r = await fetch(PRODUCT_MAP_PATH, { cache: 'no-store' });
+          const r = await fetch(PRODUCT_MAP_PATH);
           if (!r.ok) throw new Error('not found');
           const data = await r.json();
           const m = {};
           (data.mapping || []).forEach((e) => { if (e?.sku) m[e.sku] = e; });
           productMapCache = m;
-        } catch (_) { productMapCache = {}; }
-        return productMapCache;
+        } catch (_) {
+          productMapLoadPromise = null; // allow retry next call
+          productMapCache = null;
+        }
+        return productMapCache || {};
       })();
       return productMapLoadPromise;
     };
