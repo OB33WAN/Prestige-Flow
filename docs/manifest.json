@@ -1,0 +1,37 @@
+{
+  "name": "Prestige Flow LTD - Drainage & Plumbing Services",
+  "short_name": "Prestige Flow",
+  "description": "Professional drainage and plumbing services across London, Surrey, Kent, Hertfordshire, Berkshire and beyond. 24/7 emergency service available.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a2842",
+  "theme_color": "#1a2842",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/favicon.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["business", "utilities"],
+  "lang": "en-GB",
+  "dir": "ltr",
+  "scope": "/",
+  "id": "/",
+  "related_applications": [],
+  "prefer_related_applications": false
+}

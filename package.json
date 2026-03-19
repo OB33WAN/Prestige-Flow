@@ -1,0 +1,21 @@
+{
+  "name": "prestige-flow-static",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "export": "node scripts/export-site.mjs",
+    "vanilla": "npm run export && node scripts/make-vanilla.mjs",
+    "pages:build": "npm run vanilla && node scripts/publish-pages.mjs",
+    "links:audit": "node scripts/audit-links.mjs docs",
+    "preview": "node scripts/preview.mjs",
+    "stripe:import": "node scripts/import-stripe-products.mjs --file data/stripe-products.csv",
+    "stripe:import:dry": "node scripts/import-stripe-products.mjs --file data/stripe-products.csv --dry-run"
+  },
+  "devDependencies": {
+    "cheerio": "^1.0.0",
+    "playwright": "^1.58.2"
+  },
+  "dependencies": {
+    "stripe": "^20.4.1"
+  }
+}

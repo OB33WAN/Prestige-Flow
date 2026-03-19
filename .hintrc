@@ -1,0 +1,9 @@
+{
+  "hints": {
+    "no-inline-styles": "off",
+    "compat-api/css": "off",
+    "compat-api/html": "off",
+    "axe/text-alternatives": "off",
+    "axe/name-role-value": "off"
+  }
+}
