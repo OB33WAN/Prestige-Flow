@@ -6,6 +6,14 @@
       fromName: 'Prestige Flow Website',
       businessEmail: 'info@prestigeflow.co.uk'
     },
+    reviews: {
+      google: {
+        endpoint: '',
+        profileUrl: 'https://g.page/r/CWoooDggCsiQEBE',
+        refreshMs: 3600000,
+        provider: 'custom-json'
+      }
+    },
     stripe: {
       publishableKey: '',
       secretKeyNotice: 'Do not place STRIPE_SECRET_KEY in static files. Use Stripe Payment Links or a secure backend.',
@@ -23,6 +31,14 @@
     ...base,
     ...incoming,
     web3forms: { ...base.web3forms, ...(incoming?.web3forms || {}) },
+    reviews: {
+      ...base.reviews,
+      ...(incoming?.reviews || {}),
+      google: {
+        ...base.reviews.google,
+        ...(incoming?.reviews?.google || {})
+      }
+    },
     stripe: {
       ...base.stripe,
       ...(incoming?.stripe || {}),
@@ -47,6 +63,13 @@
   };
 
   const isConfigured = (value) => typeof value === 'string' && value.trim() && !value.startsWith('REPLACE_ME_');
+
+  const escapeHtml = (value) => String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 
   const formTypeFromElement = (form) => {
     const marker = (form.getAttribute('data-static-form') || '').toLowerCase();
@@ -348,17 +371,22 @@
   const setupBookingPaymentFallback = () => {
     const REGION_KEY = 'pf_region';
     const PAYMENT_LINK_MAP_PATH = '/data/stripe-payment-link-map.json';
+    const PRODUCT_MAP_PATH = '/data/stripe-product-map.json';
     const nextBtn = document.querySelector('[data-testid="button-next-step"]');
     if (!nextBtn) return;
 
     const labels = Array.from(document.querySelectorAll('[data-testid^="radio-service-"]'));
+    if (!labels.length) return;
+
     const getServiceValue = (label) => label.querySelector('[role="radio"]')?.getAttribute('value') || 'default';
     const paymentLinks = config.stripe.paymentLinks || {};
     const skuLinks = config.stripe.paymentLinksBySku || {};
 
-    let selectedService = getServiceValue(labels[0] || document.body);
+    let selectedService = '';
     let paymentLinkCache = null;
     let paymentLinkLoadPromise = null;
+    let productMapCache = null;
+    let productMapLoadPromise = null;
 
     const notice = document.createElement('div');
     notice.className = 'pf-booking-note';
@@ -443,6 +471,38 @@
       return paymentLinkLoadPromise;
     };
 
+    const loadProductMap = async () => {
+      if (productMapCache) return productMapCache;
+      if (productMapLoadPromise) return productMapLoadPromise;
+
+      productMapLoadPromise = (async () => {
+        try {
+          const response = await fetch(PRODUCT_MAP_PATH, { cache: 'no-store' });
+          if (!response.ok) throw new Error('Product map not found');
+          const data = await response.json();
+          const bySku = {};
+          (data.mapping || []).forEach((entry) => {
+            if (entry?.sku) bySku[entry.sku] = entry;
+          });
+          productMapCache = bySku;
+          return productMapCache;
+        } catch (_) {
+          productMapCache = {};
+          return productMapCache;
+        }
+      })();
+
+      return productMapLoadPromise;
+    };
+
+    const getPriceLabel = (sku, productMap) => {
+      const entry = productMap && productMap[sku];
+      if (!entry) return null;
+      const pounds = Math.round(entry.amount_pence / 100);
+      const isFixed = sku.endsWith('-FIX');
+      return isFixed ? `£${pounds} + VAT (fixed)` : `£${pounds}/hr + VAT`;
+    };
+
     const getServiceFallbackLink = (service) => {
       if (service === 'default') return paymentLinks.default || '';
       return paymentLinks[service] || paymentLinks.default || '';
@@ -462,39 +522,126 @@
       default: 'Service'
     };
 
-    const renderSelectionSummary = () => {
+    const setOptionActiveState = (label, isActive) => {
+      const radio = label.querySelector('[role="radio"]');
+      const baseBorder = 'var(--border, rgba(212, 175, 55, 0.18))';
+      const activeBorder = '#d4af37';
+      const activeBg = 'rgba(212, 175, 55, 0.08)';
+
+      label.style.borderColor = isActive ? activeBorder : baseBorder;
+      label.style.backgroundColor = isActive ? activeBg : '';
+      label.style.boxShadow = isActive ? '0 0 0 2px rgba(212, 175, 55, 0.16)' : '';
+
+      if (!radio) return;
+      radio.setAttribute('aria-checked', isActive ? 'true' : 'false');
+      radio.setAttribute('data-state', isActive ? 'checked' : 'unchecked');
+      radio.style.backgroundColor = isActive ? activeBorder : 'transparent';
+      radio.style.borderColor = isActive ? activeBorder : '';
+      radio.style.boxShadow = isActive ? 'inset 0 0 0 3px white' : '';
+    };
+
+    const refreshCardPrices = (productMap) => {
+      if (!productMap) return;
+      labels.forEach((label) => {
+        const service = getServiceValue(label);
+        if (!service || service === 'default') return;
+        const sku = buildSku(service);
+        const priceLabel = getPriceLabel(sku, productMap);
+        if (!priceLabel) return;
+        const priceEl = label.querySelector('.text-right p');
+        if (priceEl) priceEl.textContent = priceLabel;
+      });
+    };
+
+    const renderSelectionSummary = (productMap) => {
+      if (!selectedService) {
+        notice.textContent = 'Choose a service to continue to secure checkout.';
+        nextBtn.disabled = true;
+        nextBtn.setAttribute('disabled', 'disabled');
+        nextBtn.textContent = 'Select a Service to Continue';
+        return;
+      }
+
       const regionName = getRegion() === 'london' ? 'London' : 'Reading, Slough & Other Regions';
       const periodName = periodLabel[getPeriod()] || 'Current Rate Window';
       const selectedLabel = serviceLabel[selectedService] || serviceLabel.default;
-      notice.textContent = `${selectedLabel} selected for ${regionName} (${periodName}). You will continue via a secure Stripe checkout redirect.`;
+      const sku = buildSku(selectedService);
+      const priceStr = productMap ? getPriceLabel(sku, productMap) : null;
+      const priceNote = priceStr ? ` — ${priceStr}` : '';
+      notice.textContent = `${selectedLabel} selected for ${regionName} (${periodName})${priceNote}. You will continue via a secure Stripe checkout redirect.`;
+      nextBtn.disabled = false;
+      nextBtn.removeAttribute('disabled');
+      nextBtn.textContent = 'Continue to Secure Stripe Checkout Redirect';
     };
 
     const setSelection = (serviceValue) => {
-      selectedService = serviceValue || 'default';
+      selectedService = serviceValue || '';
       labels.forEach((label) => {
         const value = getServiceValue(label);
-        const isActive = value === selectedService;
-        const radio = label.querySelector('[role="radio"]');
-        if (radio) {
-          radio.setAttribute('aria-checked', isActive ? 'true' : 'false');
-          radio.setAttribute('data-state', isActive ? 'checked' : 'unchecked');
-        }
+        setOptionActiveState(label, value === selectedService);
       });
 
-      renderSelectionSummary();
+      renderSelectionSummary(productMapCache);
+    };
+
+    const handleServiceSelection = (serviceValue) => {
+      if (!serviceValue || serviceValue === 'default') return;
+      setSelection(serviceValue);
     };
 
     labels.forEach((label) => {
-      label.addEventListener('click', () => setSelection(getServiceValue(label)));
+      const serviceValue = getServiceValue(label);
+      const radio = label.querySelector('[role="radio"]');
+
+      label.setAttribute('tabindex', '0');
+      label.setAttribute('aria-pressed', 'false');
+
+      label.addEventListener('click', () => handleServiceSelection(serviceValue));
+      label.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        event.preventDefault();
+        handleServiceSelection(serviceValue);
+      });
+
+      radio?.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        handleServiceSelection(serviceValue);
+      });
     });
 
-    nextBtn.disabled = false;
-    nextBtn.removeAttribute('disabled');
-    nextBtn.textContent = 'Continue to Secure Stripe Checkout Redirect';
+    nextBtn.disabled = true;
+    nextBtn.setAttribute('disabled', 'disabled');
+    nextBtn.textContent = 'Select a Service to Continue';
+
+    // Pre-load both maps and initialise card prices once product map resolves
     void loadPaymentLinks();
+    loadProductMap().then((productMap) => {
+      refreshCardPrices(productMap);
+      renderSelectionSummary(productMap);
+    });
+
+    // Re-render card prices when the user switches region
+    document.querySelectorAll('[data-testid^="button-region-selector"]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        // Region is written to localStorage before this fires asynchronously;
+        // give the handler a tick to persist the new value
+        setTimeout(() => {
+          loadProductMap().then((productMap) => {
+            refreshCardPrices(productMap);
+            if (selectedService) renderSelectionSummary(productMap);
+          });
+        }, 150);
+      });
+    });
 
     nextBtn.addEventListener('click', async (event) => {
       event.preventDefault();
+      if (!selectedService) {
+        renderSelectionSummary(productMapCache);
+        return;
+      }
+
       const oldLabel = nextBtn.textContent;
       nextBtn.disabled = true;
       notice.textContent = 'Preparing secure Stripe checkout redirect...';
@@ -515,7 +662,123 @@
       window.location.href = destination;
     });
 
-    setSelection(selectedService);
+    renderSelectionSummary(productMapCache);
+  };
+
+  const setupGoogleReviewSummary = () => {
+    const widgetIframes = Array.from(document.querySelectorAll('[data-testid="google-reviews-widget"]'));
+    if (!widgetIframes.length) return;
+
+    const reviewsConfig = config.reviews?.google || {};
+    if (!isConfigured(reviewsConfig.endpoint)) return;
+
+    const defaultProfileUrl = isConfigured(reviewsConfig.profileUrl)
+      ? reviewsConfig.profileUrl
+      : 'https://g.page/r/CWoooDggCsiQEBE';
+
+    const summaries = widgetIframes.map((iframe) => {
+      const hostCard = iframe.closest('.space-y-4') || iframe.parentElement;
+      if (!hostCard) return null;
+
+      const existing = hostCard.querySelector('[data-pf-google-review-summary]');
+      if (existing) return existing;
+
+      const summary = document.createElement('div');
+      summary.setAttribute('data-pf-google-review-summary', 'true');
+      summary.className = 'rounded-lg border border-[#4285F4]/20 bg-[#4285F4]/[0.06] p-4';
+      summary.innerHTML = [
+        '<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">',
+        '<div>',
+        '<p class="text-xs font-semibold uppercase tracking-[0.2em] text-[#1a73e8]">Live Google rating</p>',
+        '<div class="mt-2 flex items-center gap-3">',
+        '<div class="text-3xl font-bold text-foreground" data-pf-google-rating-value>--</div>',
+        '<div>',
+        '<div class="text-sm font-medium text-foreground" data-pf-google-review-count>Waiting for review feed</div>',
+        '<div class="text-xs text-muted-foreground" data-pf-google-review-updated>Connect a live review endpoint to auto-update this summary.</div>',
+        '</div>',
+        '</div>',
+        '</div>',
+        '<a class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium min-h-9 px-4 py-2 border border-[#1a73e8] text-[#1a73e8] hover:bg-[#4285F4]/10" target="_blank" rel="noopener noreferrer" href="', escapeHtml(defaultProfileUrl), '">',
+        'Open Google profile',
+        '</a>',
+        '</div>'
+      ].join('');
+
+      hostCard.insertBefore(summary, hostCard.firstChild);
+      return summary;
+    }).filter(Boolean);
+
+    if (!summaries.length) return;
+
+    const renderState = (payload) => {
+      const ratingValue = Number(payload?.ratingValue || payload?.rating || 0);
+      const reviewCount = Number(payload?.reviewCount || payload?.count || 0);
+      const profileUrl = isConfigured(payload?.profileUrl) ? payload.profileUrl : defaultProfileUrl;
+      const updatedAt = payload?.lastUpdated || payload?.updatedAt || '';
+
+      const hasData = Number.isFinite(ratingValue) && ratingValue > 0 && Number.isFinite(reviewCount) && reviewCount > 0;
+      const updatedLabel = updatedAt
+        ? new Date(updatedAt).toLocaleString('en-GB', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          })
+        : '';
+
+      summaries.forEach((summary) => {
+        const ratingEl = summary.querySelector('[data-pf-google-rating-value]');
+        const countEl = summary.querySelector('[data-pf-google-review-count]');
+        const updatedEl = summary.querySelector('[data-pf-google-review-updated]');
+        const linkEl = summary.querySelector('a');
+
+        if (!ratingEl || !countEl || !updatedEl || !linkEl) return;
+
+        if (!hasData) {
+          ratingEl.textContent = '--';
+          countEl.textContent = 'Live review feed unavailable';
+          updatedEl.textContent = 'The Google widget can still load reviews, but this live summary needs a configured endpoint.';
+          linkEl.setAttribute('href', defaultProfileUrl);
+          return;
+        }
+
+        ratingEl.textContent = ratingValue.toFixed(1);
+        countEl.textContent = `${reviewCount} Google reviews`;
+        updatedEl.textContent = updatedLabel
+          ? `Auto-updated ${updatedLabel}`
+          : 'Auto-updated from your Google review feed';
+        linkEl.setAttribute('href', profileUrl);
+      });
+    };
+
+    const renderError = () => {
+      renderState(null);
+    };
+
+    const loadReviews = async () => {
+      try {
+        const response = await fetch(reviewsConfig.endpoint, {
+          cache: 'no-store',
+          headers: { Accept: 'application/json' }
+        });
+
+        if (!response.ok) throw new Error('Review feed unavailable');
+        const payload = await response.json();
+        renderState(payload);
+      } catch (_) {
+        renderError();
+      }
+    };
+
+    void loadReviews();
+
+    const refreshMs = Number(reviewsConfig.refreshMs || 0);
+    if (Number.isFinite(refreshMs) && refreshMs >= 60000) {
+      window.setInterval(() => {
+        void loadReviews();
+      }, refreshMs);
+    }
   };
 
   onReady(() => {
@@ -528,5 +791,6 @@
     setupHeaderScroll();
     setupWeb3Forms();
     setupBookingPaymentFallback();
+    setupGoogleReviewSummary();
   });
 })();
