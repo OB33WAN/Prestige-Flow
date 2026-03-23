@@ -20,7 +20,7 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const ROOT = join(__dirname, '..');
 
 const MAPS_URL = 'https://maps.app.goo.gl/5yFzWuK9G7n6xAp48';
-const SKIP_DIRS = new Set(['.git', 'node_modules', 'dist', 'docs']);
+const SKIP_DIRS = new Set(['.git', 'node_modules', 'docs']);
 
 function* walkHtml(dir) {
   for (const entry of readdirSync(dir)) {
