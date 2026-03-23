@@ -1,0 +1,62 @@
+keyword,cluster,intent,target_url,primary_channel,display_audience,notes
+emergency drainage london,emergency drainage,transactional,https://prestigeflow.co.uk/services/emergency-drainage,seo+search_ads,homeowners urgent repairs,core high-intent service term
+24 hour emergency plumber london,emergency plumbing,transactional,https://prestigeflow.co.uk/services/plumbing,seo+search_ads,tenants landlords,include 24/7 response in ad copy
+blocked drain emergency london,drain unblocking,transactional,https://prestigeflow.co.uk/services/drainage,seo+search_ads,homeowners urgent repairs,high urgency CTA
+drain unblocking london,drain unblocking,transactional,https://prestigeflow.co.uk/services/drainage,seo+search_ads,property managers facilities teams,core conversion term
+cctv drain survey london,cctv surveys,commercial,https://prestigeflow.co.uk/services/cctv-surveys,seo+search_ads,landlords surveyors,lead with fixed pricing
+plumbing services london,plumbing,commercial,https://prestigeflow.co.uk/services/plumbing,seo+search_ads,homeowners and tenants,broad service term
+groundworks drainage london,groundworks,commercial,https://prestigeflow.co.uk/services/groundworks,seo+search_ads,builders developers facilities teams,b2b support term
+drain patch lining london,patch lining,commercial,https://prestigeflow.co.uk/services/patch-lining,seo+search_ads,property managers insurers,no-dig repair intent
+ppm drainage maintenance,ppm maintenance,commercial,https://prestigeflow.co.uk/services/ppm-maintenance,seo+search_ads,facilities and estates managers,retainer-style contract intent
+drainage company london,brand+service,commercial,https://prestigeflow.co.uk/,seo+search_ads,broad local audience,homepage ranking term
+plumbing company london,brand+service,commercial,https://prestigeflow.co.uk/,seo+search_ads,broad local audience,homepage ranking term
+drain specialists near me,near me,transactional,https://prestigeflow.co.uk/areas,seo+search_ads,mobile local users,support with local pages
+emergency plumber near me,near me,transactional,https://prestigeflow.co.uk/areas,seo+search_ads,mobile local users,geo-intent keyword
+drainage services reading,reading geo,transactional,https://prestigeflow.co.uk/areas/reading,seo+search_ads,reading homeowners and landlords,priority area page
+emergency drainage reading,reading geo,transactional,https://prestigeflow.co.uk/areas/reading/emergency-drainage,seo+search_ads,reading urgent repairs,location+service page
+plumber reading,reading geo,transactional,https://prestigeflow.co.uk/areas/reading/plumbing,seo+search_ads,reading households and landlords,location+service page
+drainage services slough,slough geo,transactional,https://prestigeflow.co.uk/areas/slough,seo+search_ads,slough homeowners and landlords,priority area page
+emergency drainage slough,slough geo,transactional,https://prestigeflow.co.uk/areas/slough/emergency-drainage,seo+search_ads,slough urgent repairs,location+service page
+plumber slough,slough geo,transactional,https://prestigeflow.co.uk/areas/slough/plumbing,seo+search_ads,slough households and landlords,location+service page
+drainage services watford,watford geo,transactional,https://prestigeflow.co.uk/areas/watford,seo+search_ads,watford homeowners and landlords,priority commuter area
+drainage services guildford,guildford geo,transactional,https://prestigeflow.co.uk/areas/guildford,seo+search_ads,guildford homeowners and landlords,surrey hub term
+drainage services kingston,kingston geo,transactional,https://prestigeflow.co.uk/areas/kingston,seo+search_ads,kingston homeowners and landlords,surrey/london edge term
+drainage services bromley,bromley geo,transactional,https://prestigeflow.co.uk/areas/bromley,seo+search_ads,bromley households and landlords,kent/southeast london term
+drainage services enfield,enfield geo,transactional,https://prestigeflow.co.uk/areas/enfield,seo+search_ads,enfield households and landlords,north london term
+drainage services harrow,harrow geo,transactional,https://prestigeflow.co.uk/areas/harrow,seo+search_ads,harrow households and landlords,west london term
+drainage services croydon,croydon geo,transactional,https://prestigeflow.co.uk/areas/croydon,seo+search_ads,croydon households and landlords,south london term
+drainage services dartford,dartford geo,transactional,https://prestigeflow.co.uk/areas/dartford,seo+search_ads,dartford households and landlords,kent gateway term
+blocked outside drain fix,problem intent,informational,https://prestigeflow.co.uk/blog/common-plumbing-problems,seo_content,homeowners diy before-call,soft-convert blog intent
+how much is drain unblocking uk,pricing intent,informational,https://prestigeflow.co.uk/services,seo_content+search_ads,price-comparison users,link to booking and quote
+cctv drain survey cost,pricing intent,informational,https://prestigeflow.co.uk/services/cctv-surveys,seo_content+search_ads,landlords and buyers,include fixed-fee snippet
+emergency plumber cost london,pricing intent,informational,https://prestigeflow.co.uk/services/plumbing,seo_content+search_ads,price-sensitive users,show hourly bands
+drain unblocking cost london,pricing intent,informational,https://prestigeflow.co.uk/services/drainage,seo_content+search_ads,price-sensitive users,show daytime/evening rates
+drain maintenance checklist,maintenance intent,informational,https://prestigeflow.co.uk/blog/drainage-maintenance-guide,seo_content,property managers landlords,evergreen informational topic
+prevent drain blockages,maintenance intent,informational,https://prestigeflow.co.uk/blog/prevent-drain-blockages,seo_content,homeowners and tenants,top-funnel educational query
+winter pipe protection tips,seasonal intent,informational,https://prestigeflow.co.uk/blog/winter-pipe-protection,seo_content,homeowners and landlords,seasonal opportunity
+when to get cctv drain survey,diagnostic intent,informational,https://prestigeflow.co.uk/blog/understanding-cctv-surveys,seo_content,homebuyers insurers landlords,supports high-ticket service
+emergency blocked drain what to do,conversational qna,informational,https://prestigeflow.co.uk/blog/emergency-drain-blockage,seo_content+llm,voice and assistant users,question-style optimization
+who fixes blocked drains in london,conversational qna,transactional,https://prestigeflow.co.uk/services/drainage,seo+llm+search_ads,mobile emergency users,direct answer candidate
+do you offer 24 7 plumbing service,conversational qna,transactional,https://prestigeflow.co.uk/services/plumbing,seo+llm+search_ads,mobile emergency users,faq schema alignment
+how fast can a drainage engineer come,conversational qna,transactional,https://prestigeflow.co.uk/contact,seo+llm,mobile emergency users,response-time query
+best drainage company london reviews,trust intent,commercial,https://prestigeflow.co.uk/about,seo_content+search_ads,research-heavy buyers,social proof driven term
+drainage and plumbing reviews london,trust intent,commercial,https://prestigeflow.co.uk/gallery,seo_content+display,comparison shoppers and landlords,visual proof asset
+commercial drainage contractors london,b2b intent,commercial,https://prestigeflow.co.uk/industries,seo+search_ads,facilities and operations managers,b2b pillar keyword
+drainage services for schools,b2b vertical,commercial,https://prestigeflow.co.uk/industries/education,seo+search_ads,education estates managers,vertical page targeting
+drainage services for hospitality,b2b vertical,commercial,https://prestigeflow.co.uk/industries/hospitality,seo+search_ads,hospitality operators,vertical page targeting
+drainage services for healthcare,b2b vertical,commercial,https://prestigeflow.co.uk/industries/healthcare,seo+search_ads,clinic and care facility managers,vertical page targeting
+drainage services for construction,b2b vertical,commercial,https://prestigeflow.co.uk/industries/construction,seo+search_ads,site managers and contractors,vertical page targeting
+restaurant drainage maintenance,b2b vertical,commercial,https://prestigeflow.co.uk/industries/food-beverage,seo+search_ads,restaurant owners and managers,grease and drains intent
+facilities management drainage contractor,b2b vertical,commercial,https://prestigeflow.co.uk/industries/facilities-management,seo+search_ads,facilities management firms,outsourced contractor intent
+local emergency drain company,display prospecting,commercial,https://prestigeflow.co.uk/,display,homeowners in target postcodes,use local radius audience
+burst pipe emergency callout,display prospecting,transactional,https://prestigeflow.co.uk/services/plumbing,display,mobile high-intent audiences,retarget service viewers
+blocked toilet repair same day,display prospecting,transactional,https://prestigeflow.co.uk/services/plumbing,display,home renters and landlords,urgent creative angle
+sewer smell in house fix,display prospecting,informational,https://prestigeflow.co.uk/blog/common-plumbing-problems,display+seo_content,home maintenance audience,educational to conversion path
+trusted local plumber and drainage team,display brand,commercial,https://prestigeflow.co.uk/about,display,lookalike from converters,credibility messaging
+drainage experts with 24 7 support,display brand,commercial,https://prestigeflow.co.uk/services/emergency-drainage,display,remarketing list for service pages,urgency and trust creative
+book drainage service online,conversion intent,transactional,https://prestigeflow.co.uk/booking,seo+search_ads+display,remarketing and high-intent visitors,primary conversion page
+get drainage quote online,conversion intent,transactional,https://prestigeflow.co.uk/quote,seo+search_ads+display,remarketing and high-intent visitors,secondary conversion page
+contact drainage engineer london,conversion intent,transactional,https://prestigeflow.co.uk/contact,seo+search_ads+display,high-intent local visitors,call-focused conversion page
+prestige flow drainage,brand,transactional,https://prestigeflow.co.uk/,seo+search_ads,brand navigational users,protect branded SERP
+prestige flow plumbing,brand,transactional,https://prestigeflow.co.uk/services/plumbing,seo+search_ads,brand + service users,brand/service blend keyword
+prestige flow reviews,brand,commercial,https://prestigeflow.co.uk/about,seo+search_ads,brand evaluators,reputation support query

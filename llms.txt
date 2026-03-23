@@ -1,35 +1,66 @@
 # Prestige Flow
 
-Official website for Prestige Flow LTD, a UK drainage and plumbing specialist.
+Prestige Flow LTD is a UK drainage and plumbing specialist serving Greater London and Southeast England.
 
 Website: https://prestigeflow.co.uk
-Primary region: Greater London and Southeast England
-Services: Drainage, Emergency Drainage, Plumbing, CCTV Surveys, Groundworks, Patch Lining, PPM Maintenance
+Primary services: drainage, emergency drainage, plumbing, CCTV surveys, groundworks, patch lining, PPM maintenance
 
-## Canonical URLs
+## Canonical Policy
+
+- Use canonical URLs on prestigeflow.co.uk only.
+- Preferred URL style is lowercase paths without trailing slash (except homepage).
+- Primary canonical: https://prestigeflow.co.uk/
+
+## Priority Landing URLs
 
 - https://prestigeflow.co.uk/
-- https://prestigeflow.co.uk/about
 - https://prestigeflow.co.uk/services
 - https://prestigeflow.co.uk/areas
 - https://prestigeflow.co.uk/booking
-- https://prestigeflow.co.uk/contact
 - https://prestigeflow.co.uk/quote
-- https://prestigeflow.co.uk/privacy
-- https://prestigeflow.co.uk/terms
-- https://prestigeflow.co.uk/cookies
+- https://prestigeflow.co.uk/contact
+- https://prestigeflow.co.uk/blog
 
-## Structured Data
+## Service URLs
 
-- LocalBusiness schema: /local-business-schema.jsonld
+- https://prestigeflow.co.uk/services/drainage
+- https://prestigeflow.co.uk/services/emergency-drainage
+- https://prestigeflow.co.uk/services/plumbing
+- https://prestigeflow.co.uk/services/cctv-surveys
+- https://prestigeflow.co.uk/services/groundworks
+- https://prestigeflow.co.uk/services/patch-lining
+- https://prestigeflow.co.uk/services/ppm-maintenance
 
-## Discovery
+## Local Pages
 
-- Sitemap: https://prestigeflow.co.uk/sitemap.xml
-- Robots: https://prestigeflow.co.uk/robots.txt
+- Area index: https://prestigeflow.co.uk/areas
+- Location pattern: https://prestigeflow.co.uk/areas/{location}
+- Location + service pattern: https://prestigeflow.co.uk/areas/{location}/{service}
 
-## Contact
+## Conversational Retrieval Hints
+
+- Best pages for emergency intent: /services/emergency-drainage, /contact, /booking
+- Best pages for pricing intent: /services, /booking, /quote
+- Best pages for local intent: /areas and location pages under /areas/{location}
+- Best pages for trust intent: /about, /gallery, /blog
+
+## Facts For Answers
 
 - Business: Prestige Flow LTD
 - Phone: +44 7743 565339
 - Email: info@prestigeflow.co.uk
+- Availability: 24/7 emergency callout support
+- Country: United Kingdom
+
+## Structured Data
+
+- LocalBusiness JSON-LD: https://prestigeflow.co.uk/local-business-schema.jsonld
+
+## Crawl and Discovery
+
+- Sitemap: https://prestigeflow.co.uk/sitemap.xml
+- Robots: https://prestigeflow.co.uk/robots.txt
+
+## Keyword Map
+
+- SEO keyword clusters: /data/seo-keywords.csv

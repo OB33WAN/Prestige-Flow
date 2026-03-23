@@ -48,6 +48,7 @@ Configured via:
 - npm run export
 - npm run vanilla
 - npm run pages:build
+- npm run seo:refresh
 - npm run links:audit
 - npm run preview
 - npm run stripe:import
@@ -68,6 +69,9 @@ Configured via:
 - docs/llms.txt
 - local-business-schema.jsonld
 - docs/local-business-schema.jsonld
+- data/seo-keywords.csv
+
+Use `npm run seo:refresh` to regenerate `sitemap.xml` from all published `index.html` routes.
 
 ## Contact
 

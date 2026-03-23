@@ -1,71 +1,47 @@
 # robots.txt for Prestige Flow LTD
-# Drainage and Plumbing Services
 
 User-agent: *
 Allow: /
 
-# Disallow admin and private areas
+# Keep private/admin endpoints out of search indices
 Disallow: /admin
-Disallow: /api/admin
+Disallow: /admin/
 Disallow: /admin-login
-
-# Disallow authentication endpoints
+Disallow: /api/admin
 Disallow: /api/auth
 
-# Allow all service pages
-Allow: /services
-Allow: /booking
-Allow: /quote
-Allow: /contact
-Allow: /blog
+# Public machine-readable resources
+Allow: /llms.txt
+Allow: /local-business-schema.jsonld
 
-# ============================================
-# AI Search Engine Crawlers (GEO Optimization)
-# Allow AI bots for better citations
-# ============================================
-
-# OpenAI ChatGPT
+# Explicitly allow major AI/answer-engine crawlers
 User-agent: GPTBot
 Allow: /
 
-# Perplexity AI
 User-agent: PerplexityBot
 Allow: /
 
-# Anthropic Claude
 User-agent: ClaudeBot
 Allow: /
+
 User-agent: Claude-Web
 Allow: /
 
-# Google AI / Gemini
 User-agent: Google-Extended
 Allow: /
 
-# Microsoft Copilot / Bing AI
 User-agent: Bingbot
 Allow: /
 
-# Common Crawl (used by many AI models)
 User-agent: CCBot
 Allow: /
 
-# Apple AI (Applebot-Extended)
 User-agent: Applebot-Extended
 Allow: /
 
-# Meta AI
 User-agent: FacebookBot
 Allow: /
 
-# ============================================
-# Sitemap and Crawl Settings
-# ============================================
-
-# Sitemap location
+# Crawl discovery
 Sitemap: https://prestigeflow.co.uk/sitemap.xml
-# Structured data reference
-Schema: https://prestigeflow.co.uk/local-business-schema.jsonld
-
-# Crawl-delay for politeness
-Crawl-delay: 1
+Host: prestigeflow.co.uk
