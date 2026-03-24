@@ -25,8 +25,14 @@ import { fileURLToPath } from 'url';
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const ROOT = join(__dirname, '..');
 
-const GTM_ID  = 'GTM-TL8TG8CW';
-const GA4_ID  = 'G-ZN2XZLEJ3J';
+const GTM_ID   = 'GTM-TL8TG8CW';
+const GA4_ID   = 'G-ZN2XZLEJ3J';   // GA4 Measurement ID
+const GT1_ID   = 'GT-TNFNVQQZ';     // Google Tag
+const AW_ID    = 'AW-17754305332';  // Google Ads
+const GT2_ID   = 'GT-NGKVLSZN';     // Google Tag
+
+// All additional tag IDs that must appear in the gtag config block
+const EXTRA_IDS = [GT1_ID, AW_ID, GT2_ID];
 
 // Official GTM head snippet
 const GTM_HEAD =
@@ -38,8 +44,9 @@ const GTM_HEAD =
   `})(window,document,'script','dataLayer','${GTM_ID}');</script>\n` +
   `<!-- End Google Tag Manager -->`;
 
-// Direct Google Tag (gtag.js) — ensures data stream fires even if GTM consent
-// is delayed or blocked, and satisfies GA4 "connected site tag" requirement
+// Direct Google Tag (gtag.js) — fires GA4 + all GTM container tags directly,
+// satisfies GA4 "connected site tag" requirement and Google Ads conversion tracking.
+// All four IDs from the GTM-TL8TG8CW container are configured here.
 const GTAG_HEAD =
   `<!-- Google tag (gtag.js) -->\n` +
   `<script async src="https://www.googletagmanager.com/gtag/js?id=${GA4_ID}"></script>\n` +
@@ -48,6 +55,23 @@ const GTAG_HEAD =
   `  function gtag(){dataLayer.push(arguments);}\n` +
   `  gtag('js', new Date());\n` +
   `  gtag('config', '${GA4_ID}');\n` +
+  `  gtag('config', '${GT1_ID}');\n` +
+  `  gtag('config', '${AW_ID}');\n` +
+  `  gtag('config', '${GT2_ID}');\n` +
+  `</script>\n` +
+  `<!-- End Google tag -->`;
+
+// The single-config snippet that exists in already-injected files (to be upgraded)
+const OLD_GTAG_SINGLE =
+  `  gtag('config', '${GA4_ID}');\n` +
+  `</script>\n` +
+  `<!-- End Google tag -->`;
+
+const NEW_GTAG_MULTI =
+  `  gtag('config', '${GA4_ID}');\n` +
+  `  gtag('config', '${GT1_ID}');\n` +
+  `  gtag('config', '${AW_ID}');\n` +
+  `  gtag('config', '${GT2_ID}');\n` +
   `</script>\n` +
   `<!-- End Google tag -->`;
 
@@ -83,10 +107,20 @@ let skipped = 0;
 for (const file of walkHtml(ROOT)) {
   let html = readFileSync(file, 'utf8');
 
-  const needsGTM  = !html.includes(GTM_ID);
-  const needsGtag = !html.includes(GA4_ID);
+  const needsGTM       = !html.includes(GTM_ID);
+  const needsGtag      = !html.includes(GA4_ID);
+  const needsExtraIds  = EXTRA_IDS.some((id) => !html.includes(id));
 
-  if (!needsGTM && !needsGtag) {
+  // Upgrade existing single-config gtag snippet to multi-config (migration)
+  if (!needsGtag && needsExtraIds && html.includes(OLD_GTAG_SINGLE)) {
+    html = html.replace(OLD_GTAG_SINGLE, NEW_GTAG_MULTI);
+    writeFileSync(file, html, 'utf8');
+    updated++;
+    console.log(`  upgraded: ${relative(ROOT, file)}`);
+    continue;
+  }
+
+  if (!needsGTM && !needsGtag && !needsExtraIds) {
     skipped++;
     continue;
   }
@@ -112,4 +146,4 @@ for (const file of walkHtml(ROOT)) {
   console.log(`  updated: ${relative(ROOT, file)}`);
 }
 
-console.log(`\nDone: ${updated} files updated, ${skipped} already had GTM (${GTM_ID}).`);
+console.log(`\nDone: ${updated} files updated/upgraded, ${skipped} already fully tagged.`);
