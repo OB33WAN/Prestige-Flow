@@ -20,6 +20,23 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const ROOT = join(__dirname, '..');
 
 const MAPS_URL = 'https://maps.app.goo.gl/5yFzWuK9G7n6xAp48';
+const _parsedMapsUrl = new URL(MAPS_URL);
+
+/**
+ * Returns true only when the candidate string is the exact MAPS_URL.
+ * Parses both values as URLs and compares host + pathname to avoid
+ * substring-based checks that CodeQL flags as incomplete sanitization
+ * (js/incomplete-url-substring-sanitization).
+ */
+function isMapsUrl(candidate) {
+  try {
+    const u = new URL(candidate);
+    return u.host === _parsedMapsUrl.host && u.pathname === _parsedMapsUrl.pathname;
+  } catch {
+    return false;
+  }
+}
+
 const SKIP_DIRS = new Set(['.git', 'node_modules', 'docs']);
 
 function* walkHtml(dir) {
@@ -41,7 +58,10 @@ function* walkHtml(dir) {
  */
 function injectIntoSameAs(html) {
   return html.replace(/"sameAs":\[([^\]]*)\]/g, (match, inner) => {
-    if (inner.includes(MAPS_URL)) return match; // already present
+    // Check for exact URL match by parsing each quoted URL in the array
+    const alreadyPresent = [...inner.matchAll(/"(https?:\/\/[^"]+)"/g)]
+      .some(([, url]) => isMapsUrl(url));
+    if (alreadyPresent) return match;
     // Append the new URL to the existing array entries
     const separator = inner.trim().length > 0 ? ',' : '';
     return `"sameAs":[${inner}${separator}"${MAPS_URL}"]`;
@@ -55,7 +75,10 @@ let skipped = 0;
 for (const file of walkHtml(ROOT)) {
   let html = readFileSync(file, 'utf8');
 
-  if (html.includes(MAPS_URL)) {
+  // Fast pre-screen: if neither the host nor the exact path appear, skip
+  const urlAlreadyPresent = [...html.matchAll(/"(https?:\/\/[^"]+)"/g)]
+    .some(([, url]) => isMapsUrl(url));
+  if (urlAlreadyPresent) {
     skipped++;
     continue;
   }
@@ -74,7 +97,9 @@ for (const file of walkHtml(ROOT)) {
 // --- Update local-business-schema.jsonld ---
 const schemaPath = join(ROOT, 'local-business-schema.jsonld');
 let schema = readFileSync(schemaPath, 'utf8');
-if (!schema.includes(MAPS_URL)) {
+const schemaAlreadyPresent = [...schema.matchAll(/"(https?:\/\/[^"]+)"/g)]
+  .some(([, url]) => isMapsUrl(url));
+if (!schemaAlreadyPresent) {
   // Insert before the closing ] of the sameAs array
   schema = schema.replace(
     /("sameAs"\s*:\s*\[[\s\S]*?)(])/,
