@@ -2,16 +2,15 @@
 /**
  * inject-analytics.mjs
  *
- * Injects the direct Google Tag (gtag.js, G-ZN2XZLEJ3J) into every HTML file
- * in the project.
+ * Normalizes analytics markup across every HTML file so GTM owns measurement.
  *
- * It also removes any previously injected GTM noscript iframe and normalizes
- * the direct Google tag block so it remains HTML/JS only, with no iframe.
+ * It removes any previously injected direct Google Tag (gtag.js) block and the
+ * legacy GTM noscript iframe, then ensures the GTM head loader exists exactly
+ * once.
  *
  * Injects into <head> (right after opening <head> tag):
  *   1. <link rel="preconnect"> for googletagmanager.com
  *   2. Google Tag Manager loader <script>
- *   3. gtag.js <script async> + direct gtag('config') initialisation
  *
  * Usage:
  *   node scripts/inject-analytics.mjs
@@ -25,11 +24,6 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const ROOT = join(__dirname, '..');
 
 const GTM_ID = 'GTM-TL8TG8CW';
-const GA4_ID = 'G-ZN2XZLEJ3J';
-const GT1_ID = 'GT-TNFNVQQZ';
-const AW_ID = 'AW-17754305332';
-const GT2_ID = 'GT-NGKVLSZN';
-
 const GTM_HEAD =
   `<!-- Google Tag Manager -->\n` +
   `<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':\n` +
@@ -38,21 +32,6 @@ const GTM_HEAD =
   `'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);\n` +
   `})(window,document,'script','dataLayer','${GTM_ID}');</script>\n` +
   `<!-- End Google Tag Manager -->`;
-
-// Direct Google Tag (gtag.js) — HTML/JS only, no iframe.
-const GTAG_HEAD =
-  `<!-- Google tag (gtag.js) -->\n` +
-  `<script async src="https://www.googletagmanager.com/gtag/js?id=${GA4_ID}"></script>\n` +
-  `<script>\n` +
-  `  window.dataLayer = window.dataLayer || [];\n` +
-  `  function gtag(){dataLayer.push(arguments);}\n` +
-  `  gtag('js', new Date());\n` +
-  `  gtag('config', '${GA4_ID}');\n` +
-  `  gtag('config', '${GT1_ID}');\n` +
-  `  gtag('config', '${AW_ID}');\n` +
-  `  gtag('config', '${GT2_ID}');\n` +
-  `</script>\n` +
-  `<!-- End Google tag -->`;
 
 // Preconnect hint
 const PRECONNECT =
@@ -84,8 +63,8 @@ for (const file of walkHtml(ROOT)) {
 
   const original = html;
 
-  // Remove any previously injected GTM noscript iframe and existing gtag
-  // block so we can reinsert the exact normalized snippet once.
+  // Remove legacy noscript iframe and any previously hardcoded direct gtag
+  // block so GTM remains the single analytics owner in page source.
   html = html.replace(GTM_BODY_RE, '');
   html = html.replace(GOOGLE_TAG_RE, '');
 
@@ -94,9 +73,8 @@ for (const file of walkHtml(ROOT)) {
   const headParts = [];
   if (needsPreconnect) headParts.push(PRECONNECT);
   if (needsGtmHead) headParts.push(GTM_HEAD);
-  headParts.push(GTAG_HEAD);
 
-  if (!html.includes(GA4_ID)) {
+  if (headParts.length > 0) {
     html = html.replace(/(<head[^>]*>)/, `$1\n${headParts.join('\n')}`);
   }
 
