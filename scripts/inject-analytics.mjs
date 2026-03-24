@@ -92,10 +92,9 @@ for (const file of walkHtml(ROOT)) {
   }
 
   // Build the combined head block to inject once (avoids double regex on <head>)
+  const needsPreconnect = !html.includes('preconnect" href="https://www.googletagmanager.com"');
   const headParts = [];
-  if (needsGTM || needsGtag) {
-    headParts.push(PRECONNECT);
-  }
+  if (needsPreconnect) headParts.push(PRECONNECT);
   if (needsGTM)  headParts.push(GTM_HEAD);
   if (needsGtag) headParts.push(GTAG_HEAD);
 
