@@ -71,6 +71,315 @@
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 
+  const REGION_KEY = 'pf_region';
+  const REGION_SOURCE_KEY = 'pf_region_source';
+  const GEO_CACHE_KEY = 'pf_region_geo_cache';
+  const GEO_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+  const REGION_LABELS = {
+    london: 'London',
+    regional: 'Reading, Slough & SE'
+  };
+  const REGION_RATES = {
+    london: {
+      drainage: { daytime: '£120/hr', evening: '£140/hr', weekend: '£140/hr' },
+      plumbing: { daytime: '£105/hr', evening: '£115/hr', weekend: '£115/hr' }
+    },
+    regional: {
+      drainage: { daytime: '£110/hr', evening: '£130/hr', weekend: '£130/hr' },
+      plumbing: { daytime: '£95/hr', evening: '£110/hr', weekend: '£110/hr' }
+    }
+  };
+  const PERIOD_BADGE_LABELS = {
+    daytime: 'Daytime Rate (8am-6pm)',
+    evening: 'Evening Rate (6pm-8am)',
+    weekend: 'Weekend Rate'
+  };
+  const LONDON_BOUNDS = {
+    minLat: 51.28,
+    maxLat: 51.70,
+    minLon: -0.52,
+    maxLon: 0.33
+  };
+
+  const storageGet = (key) => {
+    try {
+      return window.localStorage.getItem(key);
+    } catch (_) {
+      return null;
+    }
+  };
+
+  const storageSet = (key, value) => {
+    try {
+      window.localStorage.setItem(key, value);
+    } catch (_) {
+      // Ignore storage failures in private browsing or restricted contexts.
+    }
+  };
+
+  const normalizeRegion = (value) => value === 'regional' ? 'regional' : 'london';
+
+  const getRegionLabel = (region) => REGION_LABELS[normalizeRegion(region)] || REGION_LABELS.london;
+
+  const getStoredRegion = () => normalizeRegion(storageGet(REGION_KEY));
+
+  const setStoredRegion = (region, source) => {
+    storageSet(REGION_KEY, normalizeRegion(region));
+    if (source) storageSet(REGION_SOURCE_KEY, source);
+  };
+
+  const getCurrentPeriod = () => {
+    const now = new Date();
+    const day = now.getDay();
+    const hour = now.getHours();
+    if (day === 0 || day === 6) return 'weekend';
+    return (hour >= 8 && hour < 18) ? 'daytime' : 'evening';
+  };
+
+  const withTimeout = async (promise, timeoutMs) => {
+    let timeoutId = null;
+    const timeoutPromise = new Promise((_, reject) => {
+      timeoutId = window.setTimeout(() => reject(new Error('timeout')), timeoutMs);
+    });
+    try {
+      return await Promise.race([promise, timeoutPromise]);
+    } finally {
+      if (timeoutId !== null) window.clearTimeout(timeoutId);
+    }
+  };
+
+  const isLondonGeo = (geo) => {
+    const lat = Number(geo?.latitude ?? geo?.lat);
+    const lon = Number(geo?.longitude ?? geo?.lon ?? geo?.lng);
+    if (Number.isFinite(lat) && Number.isFinite(lon)) {
+      if (
+        lat >= LONDON_BOUNDS.minLat &&
+        lat <= LONDON_BOUNDS.maxLat &&
+        lon >= LONDON_BOUNDS.minLon &&
+        lon <= LONDON_BOUNDS.maxLon
+      ) {
+        return true;
+      }
+    }
+
+    const fields = [geo?.city, geo?.region, geo?.region_code, geo?.county, geo?.timezone]
+      .filter(Boolean)
+      .map((value) => String(value).toLowerCase());
+
+    return fields.some((value) => value.includes('london'));
+  };
+
+  const readCachedGeoRegion = () => {
+    const cached = storageGet(GEO_CACHE_KEY);
+    if (!cached) return null;
+    try {
+      const parsed = JSON.parse(cached);
+      if (!parsed?.region || !parsed?.timestamp) return null;
+      if ((Date.now() - Number(parsed.timestamp)) > GEO_CACHE_TTL_MS) return null;
+      return normalizeRegion(parsed.region);
+    } catch (_) {
+      return null;
+    }
+  };
+
+  const cacheGeoRegion = (region) => {
+    storageSet(GEO_CACHE_KEY, JSON.stringify({
+      region: normalizeRegion(region),
+      timestamp: Date.now()
+    }));
+  };
+
+  const detectRegionFromGeo = async () => {
+    const cachedRegion = readCachedGeoRegion();
+    if (cachedRegion) return cachedRegion;
+
+    const response = await withTimeout(fetch('https://ipapi.co/json/', { cache: 'no-store' }), 4000);
+    if (!response.ok) throw new Error('geo lookup failed');
+    const geo = await response.json();
+    const region = isLondonGeo(geo) ? 'london' : 'regional';
+    cacheGeoRegion(region);
+    return region;
+  };
+
+  const walkTextNodes = (root, visit) => {
+    if (!root) return;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode(node) {
+        const parentName = node.parentElement?.tagName;
+        if (!node.nodeValue || !node.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
+        if (parentName === 'SCRIPT' || parentName === 'STYLE' || parentName === 'NOSCRIPT') {
+          return NodeFilter.FILTER_REJECT;
+        }
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    });
+
+    let current = walker.nextNode();
+    while (current) {
+      visit(current);
+      current = walker.nextNode();
+    }
+  };
+
+  const swapVariant = (text, londonValue, regionalValue, region) => {
+    const target = region === 'regional' ? regionalValue : londonValue;
+    return text.split(londonValue).join(target).split(regionalValue).join(target);
+  };
+
+  const mutateServiceText = (text, serviceType, region) => {
+    if (!text || text.indexOf('£') === -1) return text;
+    if (
+      text.includes('In London:') ||
+      text.includes('Reading & Slough') ||
+      text.includes('rates vary by region') ||
+      text.includes('depending on your location') ||
+      text.includes('£95-£105') ||
+      text.includes('£105-115') ||
+      text.includes('£120-140')
+    ) {
+      return text;
+    }
+
+    if (serviceType === 'plumbing') {
+      return [
+        ['From £105/hour + VAT', 'From £95/hour + VAT'],
+        ['From £105/hr + VAT', 'From £95/hr + VAT'],
+        ['From £105/hr +VAT', 'From £95/hr +VAT'],
+        ['From £105/hr', 'From £95/hr'],
+        ['£105/hour + VAT', '£95/hour + VAT'],
+        ['£115/hour + VAT', '£110/hour + VAT'],
+        ['£105/hr + VAT', '£95/hr + VAT'],
+        ['£105/hr +VAT', '£95/hr +VAT'],
+        ['£115/hr + VAT', '£110/hr + VAT'],
+        ['£115/hr +VAT', '£110/hr +VAT'],
+        ['£105/hr', '£95/hr'],
+        ['£115/hr', '£110/hr'],
+        ['Evenings: £115/hr | Weekends: £115/hr', 'Evenings: £110/hr | Weekends: £110/hr']
+      ].reduce((result, [londonValue, regionalValue]) => swapVariant(result, londonValue, regionalValue, region), text);
+    }
+
+    return [
+      ['From £120/hour + VAT', 'From £110/hour + VAT'],
+      ['From £120/hr + VAT', 'From £110/hr + VAT'],
+      ['From £120/hr +VAT', 'From £110/hr +VAT'],
+      ['From £120/hr', 'From £110/hr'],
+      ['From £140/hour + VAT', 'From £130/hour + VAT'],
+      ['From £140/hr + VAT', 'From £130/hr + VAT'],
+      ['From £140/hr +VAT', 'From £130/hr +VAT'],
+      ['From £140/hr', 'From £130/hr'],
+      ['£120/hour + VAT', '£110/hour + VAT'],
+      ['£140/hour + VAT', '£130/hour + VAT'],
+      ['£120/hr + VAT', '£110/hr + VAT'],
+      ['£120/hr +VAT', '£110/hr +VAT'],
+      ['£140/hr + VAT', '£130/hr + VAT'],
+      ['£140/hr +VAT', '£130/hr +VAT'],
+      ['£120/hr', '£110/hr'],
+      ['£140/hr', '£130/hr'],
+      ['Evenings: £140/hr | Weekends: £140/hr', 'Evenings: £130/hr | Weekends: £130/hr']
+    ].reduce((result, [londonValue, regionalValue]) => swapVariant(result, londonValue, regionalValue, region), text);
+  };
+
+  const getServiceTypeFromText = (value) => {
+    const text = String(value || '').toLowerCase();
+    if (text.includes('plumbing')) return 'plumbing';
+    if (text.includes('emergency drainage')) return 'drainage';
+    if (text.includes('blocked toilet')) return 'drainage';
+    if (text.includes('drainage')) return 'drainage';
+    return '';
+  };
+
+  const updateServiceRoots = (region) => {
+    const cardRoots = Array.from(document.querySelectorAll('.shadcn-card'));
+    cardRoots.forEach((root) => {
+      const heading = root.querySelector('h1, h2, h3, h4');
+      const serviceType = getServiceTypeFromText(heading?.textContent || root.textContent || '');
+      if (!serviceType) return;
+      walkTextNodes(root, (node) => {
+        const next = mutateServiceText(node.nodeValue, serviceType, region);
+        if (next !== node.nodeValue) node.nodeValue = next;
+      });
+    });
+
+    const path = window.location.pathname.replace(/\/$/, '') || '/';
+    const main = document.querySelector('main');
+    let pageServiceType = '';
+    if (path === '/services/plumbing') pageServiceType = 'plumbing';
+    if (path === '/services/drainage' || path === '/services/emergency-drainage' || path === '/services/blocked-toilet') {
+      pageServiceType = 'drainage';
+    }
+    if (pageServiceType && main) {
+      walkTextNodes(main, (node) => {
+        const next = mutateServiceText(node.nodeValue, pageServiceType, region);
+        if (next !== node.nodeValue) node.nodeValue = next;
+      });
+    }
+  };
+
+  const updateRegionDecorators = (region) => {
+    const label = getRegionLabel(region);
+
+    document.querySelectorAll('[data-testid^="button-region-selector"]').forEach((btn) => {
+      const textNode = [...btn.childNodes].find((node) => node.nodeType === Node.TEXT_NODE && node.textContent.trim());
+      if (textNode) textNode.textContent = label;
+    });
+
+    const inlineBanner = document.querySelector('[data-testid="button-region-selector-inline"]');
+    if (inlineBanner) {
+      const labelNode = inlineBanner.parentElement?.querySelector('span:not(.text-muted-foreground)');
+      if (labelNode && !labelNode.querySelector('button')) {
+        labelNode.textContent = 'Showing prices for ' + label;
+      }
+    }
+
+    document.querySelectorAll('span').forEach((span) => {
+      const text = span.textContent?.trim() || '';
+      if (text === 'Prices for: London' || text === 'Prices for: Reading, Slough & SE') {
+        span.textContent = 'Prices for: ' + label;
+      }
+    });
+  };
+
+  const updateCurrentRateDisplay = (region) => {
+    const period = getCurrentPeriod();
+    const rateSet = REGION_RATES[normalizeRegion(region)] || REGION_RATES.london;
+    const badge = document.querySelector('[data-testid="badge-current-rate"]');
+    const rateDisplay = document.querySelector('[data-testid="current-rate-display"]');
+
+    if (badge) {
+      const textNode = [...badge.childNodes].find((node) => node.nodeType === Node.TEXT_NODE && node.textContent.trim());
+      if (textNode) textNode.textContent = PERIOD_BADGE_LABELS[period] || PERIOD_BADGE_LABELS.daytime;
+    }
+
+    if (rateDisplay) {
+      const prices = rateDisplay.querySelectorAll('p.text-lg.font-bold.text-primary');
+      if (prices[0]) prices[0].textContent = rateSet.drainage[period];
+      if (prices[1]) prices[1].textContent = rateSet.plumbing[period];
+    }
+  };
+
+  const applyRegionToPage = (region) => {
+    const normalizedRegion = normalizeRegion(region);
+    updateRegionDecorators(normalizedRegion);
+    updateCurrentRateDisplay(normalizedRegion);
+    updateServiceRoots(normalizedRegion);
+  };
+
+  const setupAutomaticRegionPricing = () => {
+    const initialRegion = getStoredRegion();
+    applyRegionToPage(initialRegion);
+
+    if (storageGet(REGION_SOURCE_KEY) === 'manual') return;
+
+    detectRegionFromGeo()
+      .then((detectedRegion) => {
+        setStoredRegion(detectedRegion, 'auto');
+        applyRegionToPage(detectedRegion);
+      })
+      .catch(() => {
+        if (!storageGet(REGION_SOURCE_KEY)) storageSet(REGION_SOURCE_KEY, 'default');
+      });
+  };
+
   const formTypeFromElement = (form) => {
     const marker = (form.getAttribute('data-static-form') || '').toLowerCase();
     const text = (form.closest('section')?.textContent || '').toLowerCase();
@@ -371,7 +680,6 @@
   };
 
   const setupBookingPaymentFallback = () => {
-    const REGION_KEY = 'pf_region';
     const PAYMENT_LINK_MAP_PATH = '/data/stripe-payment-link-map.json';
     const PRODUCT_MAP_PATH = '/data/stripe-product-map.json';
 
@@ -390,31 +698,16 @@
     let productMapLoadPromise = null;
 
     const getRegion = () => {
-      const s = localStorage.getItem(REGION_KEY);
-      return (!s || s === 'london') ? 'london' : 'regional';
+      return getStoredRegion();
     };
 
     const setRegion = (value) => {
-      localStorage.setItem(REGION_KEY, value);
-      // Sync the decorative region-selector labels in the page header / hero
-      const label = value === 'london' ? 'London' : 'Reading, Slough & SE';
-      document.querySelectorAll('[data-testid^="button-region-selector"]').forEach((btn) => {
-        const textNode = [...btn.childNodes].find((n) => n.nodeType === 3 && n.textContent.trim());
-        if (textNode) textNode.textContent = label;
-      });
-      const inlineBanner = document.querySelector('[data-testid="button-region-selector-inline"]');
-      if (inlineBanner) {
-        const span = inlineBanner.parentElement?.querySelector('span:not(.text-muted-foreground)');
-        if (span && !span.querySelector('button')) span.textContent = 'Showing prices for ' + label;
-      }
+      setStoredRegion(value, 'manual');
+      applyRegionToPage(value);
     };
 
     const getPeriod = () => {
-      const now = new Date();
-      const day = now.getDay();
-      const hour = now.getHours();
-      if (day === 0 || day === 6) return 'weekend';
-      return (hour >= 8 && hour < 18) ? 'daytime' : 'evening';
+      return getCurrentPeriod();
     };
 
     const SERVICE_TOKEN = { drainage: 'DRAIN', 'emergency-drainage': 'EMER', plumbing: 'PLUM', 'cctv-survey': 'CCTV' };
@@ -939,6 +1232,7 @@
     setupMobileMenu();
     setupComboboxFallbacks();
     setupMenuButtonFallbacks();
+    setupAutomaticRegionPricing();
     setupHeaderScroll();
     setupWeb3Forms();
     setupBookingPaymentFallback();
