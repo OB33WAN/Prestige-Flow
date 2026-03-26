@@ -201,6 +201,60 @@
     return region;
   };
 
+  // Fallback 2: browser Geolocation API + postcodes.io reverse geocoding.
+  // More accurate than IP (handles VPNs / corporate proxies) but requires
+  // a browser permission prompt. Only attempted when IP geo fails.
+  const detectRegionFromPostcode = () =>
+    new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error('geolocation-unavailable'));
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        ({ coords: { latitude, longitude } }) => {
+          withTimeout(
+            fetch(
+              `https://api.postcodes.io/postcodes?lon=${longitude}&lat=${latitude}&limit=1`,
+              { cache: 'no-store' }
+            ),
+            5000
+          )
+            .then((resp) => {
+              if (!resp.ok) throw new Error('postcodes-api');
+              return resp.json();
+            })
+            .then((data) => {
+              const result = data?.result?.[0];
+              if (!result) {
+                // postcodes.io returned no results — use bounding box on browser coords
+                const detected = isLondonGeo({ latitude, longitude }) ? 'london' : 'regional';
+                cacheGeoRegion(detected);
+                resolve(detected);
+                return;
+              }
+              // postcodes.io sets region="London" for all Greater London postcodes
+              const regionText = String(result.region || '').toLowerCase();
+              const districtText = String(result.admin_district || '').toLowerCase();
+              const isLondon =
+                regionText === 'london' ||
+                districtText.includes('london') ||
+                isLondonGeo({ latitude, longitude });
+              const detected = isLondon ? 'london' : 'regional';
+              cacheGeoRegion(detected);
+              resolve(detected);
+            })
+            .catch(() => {
+              // postcodes.io unavailable — pure bounding-box on browser coords
+              const detected = isLondonGeo({ latitude, longitude }) ? 'london' : 'regional';
+              cacheGeoRegion(detected);
+              resolve(detected);
+            });
+        },
+        (err) => reject(err),
+        { timeout: 8000, maximumAge: 300000 }
+      );
+    });
+
   const walkTextNodes = (root, visit) => {
     if (!root) return;
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
@@ -364,17 +418,138 @@
     updateServiceRoots(normalizedRegion);
   };
 
+  // ─── Region picker dropdown ────────────────────────────────────────────────
+  // The static HTML preserved the Radix menu trigger buttons but without their
+  // React dropdown logic. We recreate a lightweight dropdown here so users can
+  // manually switch between London and Regional pricing from any page.
+  let regionDropdownVisible = false;
+  let regionDropdownEl = null;
+
+  const closeRegionDropdown = () => {
+    if (regionDropdownEl) {
+      regionDropdownEl.remove();
+      regionDropdownEl = null;
+    }
+    regionDropdownVisible = false;
+  };
+
+  const openRegionDropdown = (anchorBtn) => {
+    closeRegionDropdown();
+
+    const currentRegion = getStoredRegion();
+    const dropdown = document.createElement('div');
+    dropdown.setAttribute('role', 'menu');
+    dropdown.setAttribute('aria-label', 'Select pricing area');
+    dropdown.style.cssText = [
+      'position:fixed',
+      'z-index:9999',
+      'background:hsl(var(--popover, 0 0% 100%))',
+      'color:hsl(var(--popover-foreground, 215 45% 15%))',
+      'border:1px solid hsl(var(--border, 215 15% 88%))',
+      'border-radius:0.5rem',
+      'box-shadow:0 4px 24px rgba(0,0,0,0.18)',
+      'padding:0.375rem',
+      'min-width:260px'
+    ].join(';');
+
+    const options = [
+      { value: 'london',   label: 'London',              desc: 'Greater London' },
+      { value: 'regional', label: 'Reading, Slough & SE', desc: 'Berkshire, Surrey, Kent, Herts, Bucks & more' }
+    ];
+
+    dropdown.innerHTML = [
+      `<p style="font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:hsl(var(--muted-foreground,215 15% 55%));padding:0.4rem 0.6rem 0.3rem;">Showing prices for</p>`,
+      ...options.map(({ value, label, desc }) => {
+        const active = currentRegion === value;
+        return `<button type="button" role="menuitem" data-region-pick="${escapeHtml(value)}"
+          style="display:flex;align-items:flex-start;gap:0.6rem;width:100%;padding:0.55rem 0.6rem;border-radius:0.35rem;border:none;background:${active ? 'rgba(212,175,55,0.12)' : 'transparent'};cursor:pointer;text-align:left;color:inherit;${active ? 'outline:2px solid rgba(212,175,55,0.5);outline-offset:-2px;' : ''}">
+          <span style="font-size:1rem;line-height:1.2;margin-top:0.05rem;color:hsl(var(--primary,45 80% 28%))">${active ? '✓' : '○'}</span>
+          <span style="flex:1">
+            <span style="display:block;font-size:0.875rem;font-weight:${active ? '600' : '500'};color:hsl(var(--popover-foreground,215 45% 15%))">${escapeHtml(label)}</span>
+            <span style="display:block;font-size:0.75rem;color:hsl(var(--muted-foreground,215 15% 55%));margin-top:0.1rem">${escapeHtml(desc)}</span>
+          </span>
+        </button>`;
+      })
+    ].join('');
+
+    dropdown.querySelectorAll('[data-region-pick]').forEach((item) => {
+      item.addEventListener('click', () => {
+        const picked = item.getAttribute('data-region-pick');
+        setStoredRegion(picked, 'manual');
+        applyRegionToPage(picked);
+        closeRegionDropdown();
+      });
+    });
+
+    document.body.appendChild(dropdown);
+    regionDropdownEl = dropdown;
+    regionDropdownVisible = true;
+
+    // Position below the anchor button
+    const rect = anchorBtn.getBoundingClientRect();
+    const dropW = 260;
+    let left = rect.left;
+    if (left + dropW > window.innerWidth - 8) left = window.innerWidth - dropW - 8;
+    dropdown.style.top = (rect.bottom + 6 + window.scrollY) + 'px';
+    dropdown.style.left = Math.max(8, left) + 'px';
+  };
+
+  const setupRegionSelectorButtons = () => {
+    document.querySelectorAll('[data-testid^="button-region-selector"]').forEach((btn) => {
+      // Remove the redirect that was previously added by setupMenuButtonFallbacks
+      btn.replaceWith(btn.cloneNode(true));
+    });
+
+    document.querySelectorAll('[data-testid^="button-region-selector"]').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (regionDropdownVisible) {
+          closeRegionDropdown();
+        } else {
+          openRegionDropdown(btn);
+        }
+      });
+    });
+
+    document.addEventListener('click', (e) => {
+      if (regionDropdownVisible && regionDropdownEl && !regionDropdownEl.contains(e.target)) {
+        closeRegionDropdown();
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && regionDropdownVisible) closeRegionDropdown();
+    });
+  };
+
   const setupAutomaticRegionPricing = () => {
     const initialRegion = getStoredRegion();
     applyRegionToPage(initialRegion);
 
     if (storageGet(REGION_SOURCE_KEY) === 'manual') return;
 
+    // Fire both detection methods concurrently:
+    //   1. IP geo (ipapi.co) — silent, no permission, fastest (~1s)
+    //   2. Browser Geolocation + postcodes.io — triggers native permission
+    //      prompt immediately; result is postcode-accurate and overrides
+    //      the IP result even if it arrives slightly later.
+    //   3. Manual dropdown — permanently overrides; never touched here.
+    const applyIfNotManual = (region) => {
+      if (storageGet(REGION_SOURCE_KEY) !== 'manual') {
+        setStoredRegion(region, 'auto');
+        applyRegionToPage(region);
+      }
+    };
+
+    // IP geo — sets a fast initial result
     detectRegionFromGeo()
-      .then((detectedRegion) => {
-        setStoredRegion(detectedRegion, 'auto');
-        applyRegionToPage(detectedRegion);
-      })
+      .then(applyIfNotManual)
+      .catch(() => {});
+
+    // Browser geo + postcodes.io — requests permission, overrides IP when granted
+    detectRegionFromPostcode()
+      .then(applyIfNotManual)
       .catch(() => {
         if (!storageGet(REGION_SOURCE_KEY)) storageSet(REGION_SOURCE_KEY, 'default');
       });
@@ -558,15 +733,10 @@
       const hasMenu = controls ? Boolean(document.getElementById(controls)) : false;
       if (hasMenu) return;
 
-      button.addEventListener('click', () => {
-        const text = (button.textContent || '').toLowerCase();
-        if (text.includes('region') || text.includes('london') || text.includes('area') || text.includes('reading') || text.includes('slough')) {
-          // On the booking page the multi-step wizard owns region selection — skip redirect
-          const isBookingPage = Boolean(document.querySelector('[data-testid="button-next-step"], [data-testid="button-step1-next"]'));
-          if (!isBookingPage) window.location.href = '/areas';
-          return;
-        }
+      // Region-selector buttons have their own dedicated handler — skip entirely
+      if ((button.getAttribute('data-testid') || '').startsWith('button-region-selector')) return;
 
+      button.addEventListener('click', () => {
         const parentLink = button.closest('a');
         if (parentLink?.getAttribute('href')) {
           window.location.href = parentLink.getAttribute('href');
@@ -1232,6 +1402,7 @@
     setupMobileMenu();
     setupComboboxFallbacks();
     setupMenuButtonFallbacks();
+    setupRegionSelectorButtons();
     setupAutomaticRegionPricing();
     setupHeaderScroll();
     setupWeb3Forms();
