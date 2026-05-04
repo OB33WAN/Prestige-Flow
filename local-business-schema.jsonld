@@ -1,47 +1,163 @@
 {
   "@context": "https://schema.org",
-  "@type": "LocalBusiness",
-  "@id": "https://prestigeflow.co.uk#localbusiness",
-  "name": "Prestige Flow LTD",
-  "url": "https://prestigeflow.co.uk",
-  "telephone": "+447743565339",
-  "email": "info@prestigeflow.co.uk",
-  "description": "Professional drainage and plumbing services across London and Southeast England. 24/7 emergency response, drain unblocking, CCTV surveys, and plumbing repairs.",
-  "priceRange": "GBP",
-  "address": {
-    "@type": "PostalAddress",
-    "streetAddress": "23a Kenilworth Gardens",
-    "addressLocality": "Hayes",
-    "addressRegion": "England",
-    "postalCode": "UB4 0AY",
-    "addressCountry": "GB"
-  },
-  "areaServed": [
-    "London",
-    "Reading",
-    "Slough",
-    "Southeast England"
-  ],
-  "openingHoursSpecification": [
+  "@graph": [
     {
-      "@type": "OpeningHoursSpecification",
-      "dayOfWeek": [
-        "Monday",
-        "Tuesday",
-        "Wednesday",
-        "Thursday",
-        "Friday",
-        "Saturday",
-        "Sunday"
+      "@type": "LocalBusiness",
+      "@id": "https://prestigeflow.co.uk#localbusiness",
+      "name": "Prestige Flow LTD",
+      "url": "https://prestigeflow.co.uk",
+      "telephone": "+447743565339",
+      "email": "info@prestigeflow.co.uk",
+      "description": "Professional drainage and plumbing services across London and Southeast England. 24/7 emergency response, drain unblocking, CCTV surveys, and plumbing repairs.",
+      "priceRange": "GBP",
+      "currenciesAccepted": "GBP",
+      "paymentAccepted": "Cash, Credit Card, Debit Card, Bank Transfer",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "23a Kenilworth Gardens",
+        "addressLocality": "Hayes",
+        "addressRegion": "England",
+        "postalCode": "UB4 0AY",
+        "addressCountry": "GB"
+      },
+      "areaServed": [
+        "London",
+        "Reading",
+        "Slough",
+        "Southeast England"
       ],
-      "opens": "00:00",
-      "closes": "23:59"
+      "openingHoursSpecification": [
+        {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": [
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday",
+            "Sunday"
+          ],
+          "opens": "00:00",
+          "closes": "23:59"
+        }
+      ],
+      "hasOfferCatalog": {
+        "@type": "OfferCatalog",
+        "name": "Drainage and Plumbing Services",
+        "itemListElement": [
+          {
+            "@type": "Offer",
+            "itemOffered": {
+              "@id": "https://prestigeflow.co.uk/services/drainage#service"
+            }
+          },
+          {
+            "@type": "Offer",
+            "itemOffered": {
+              "@id": "https://prestigeflow.co.uk/services/plumbing#service"
+            }
+          }
+        ]
+      },
+      "potentialAction": [
+        {
+          "@type": "ReserveAction",
+          "name": "Book Online",
+          "target": {
+            "@type": "EntryPoint",
+            "urlTemplate": "https://prestigeflow.co.uk/booking"
+          }
+        },
+        {
+          "@type": "CommunicateAction",
+          "name": "Call 24/7 Emergency Team",
+          "target": {
+            "@type": "EntryPoint",
+            "urlTemplate": "tel:+447743565339"
+          }
+        }
+      ],
+      "sameAs": [
+        "https://www.instagram.com/prestigeflowltd",
+        "https://www.facebook.com/prestigeflowltd",
+        "https://www.linkedin.com/company/prestige-flow-ltd",
+        "https://maps.app.goo.gl/5yFzWuK9G7n6xAp48"
+      ]
+    },
+    {
+      "@type": "Service",
+      "@id": "https://prestigeflow.co.uk/services/drainage#service",
+      "name": "Drainage Service",
+      "serviceType": [
+        "Drainage Service",
+        "Drain Unblocking",
+        "Emergency Drainage",
+        "CCTV Drain Surveys"
+      ],
+      "description": "Professional drainage service for blocked drains, emergency drainage issues, CCTV surveys, and long-term maintenance.",
+      "provider": {
+        "@id": "https://prestigeflow.co.uk#localbusiness"
+      },
+      "areaServed": [
+        "London",
+        "Reading",
+        "Slough",
+        "Southeast England"
+      ],
+      "url": "https://prestigeflow.co.uk/services/drainage"
+    },
+    {
+      "@type": "Service",
+      "@id": "https://prestigeflow.co.uk/services/plumbing#service",
+      "name": "Plumbing Service",
+      "serviceType": [
+        "Plumbing Service",
+        "Emergency Plumber",
+        "Pipe Repairs",
+        "Leak Detection"
+      ],
+      "description": "Professional plumbing service for urgent repairs, leaks, pipework, and planned installations with clear pricing.",
+      "provider": {
+        "@id": "https://prestigeflow.co.uk#localbusiness"
+      },
+      "areaServed": [
+        "London",
+        "Reading",
+        "Slough",
+        "Southeast England"
+      ],
+      "url": "https://prestigeflow.co.uk/services/plumbing"
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://prestigeflow.co.uk#faq-service-intent",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Who can fix a blocked drain in London quickly?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Prestige Flow LTD provides fast blocked drain and emergency drainage services across London and Southeast England with 24/7 availability."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Do you offer emergency plumbing and drainage services 24/7?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. Prestige Flow LTD offers 24/7 emergency plumbing and drainage support for urgent issues including blocked drains and burst pipes."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I book drainage or plumbing online?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. You can book online at https://prestigeflow.co.uk/booking and request a quote at https://prestigeflow.co.uk/quote."
+          }
+        }
+      ]
     }
-  ],
-  "sameAs": [
-    "https://www.instagram.com/prestigeflowltd",
-    "https://www.facebook.com/prestigeflowltd",
-    "https://www.linkedin.com/company/prestige-flow-ltd",
-    "https://maps.app.goo.gl/5yFzWuK9G7n6xAp48"
   ]
 }

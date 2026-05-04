@@ -1395,6 +1395,57 @@
     }
   };
 
+  const setupHomepageBookingShortcut = () => {
+    const path = window.location.pathname.replace(/\/$/, '') || '/';
+    if (path !== '/') return;
+    if (document.querySelector('[data-pf-home-booking-shortcut]')) return;
+
+    const host = document.querySelector('main#main-content');
+    if (!host) return;
+
+    const section = document.createElement('section');
+    section.setAttribute('data-pf-home-booking-shortcut', 'true');
+    section.style.background = 'linear-gradient(90deg, #d4af37 0%, #c49d2f 100%)';
+    section.style.color = '#1a2842';
+    section.style.borderBottom = '1px solid rgba(26, 40, 66, 0.2)';
+
+    const container = document.createElement('div');
+    container.className = 'container mx-auto px-4';
+    container.style.display = 'flex';
+    container.style.flexWrap = 'wrap';
+    container.style.gap = '12px';
+    container.style.justifyContent = 'space-between';
+    container.style.alignItems = 'center';
+    container.style.paddingTop = '12px';
+    container.style.paddingBottom = '12px';
+
+    const copy = document.createElement('p');
+    copy.style.margin = '0';
+    copy.style.fontWeight = '700';
+    copy.style.fontSize = '0.95rem';
+    copy.textContent = 'Need a drainage or plumbing visit? Book online in under 60 seconds.';
+
+    const cta = document.createElement('a');
+    cta.href = '/booking';
+    cta.textContent = 'Book Now';
+    cta.setAttribute('aria-label', 'Book now in under 60 seconds');
+    cta.style.display = 'inline-flex';
+    cta.style.alignItems = 'center';
+    cta.style.justifyContent = 'center';
+    cta.style.padding = '8px 14px';
+    cta.style.borderRadius = '8px';
+    cta.style.fontWeight = '700';
+    cta.style.textDecoration = 'none';
+    cta.style.backgroundColor = '#1a2842';
+    cta.style.color = '#fff';
+    cta.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.18)';
+
+    container.appendChild(copy);
+    container.appendChild(cta);
+    section.appendChild(container);
+    host.insertBefore(section, host.firstChild);
+  };
+
   onReady(() => {
     document.body.style.pointerEvents = '';
     setupCookieBanner();
@@ -1408,5 +1459,6 @@
     setupWeb3Forms();
     setupBookingPaymentFallback();
     setupGoogleReviewSummary();
+    setupHomepageBookingShortcut();
   });
 })();
