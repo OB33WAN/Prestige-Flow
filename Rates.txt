@@ -2,13 +2,13 @@ LONDON
 
 Drainage Service
 Mon-Fri 8am-6pm: £120/hour + VAT
-Mon-Fri 6pm-8am: £140/hour + VAT
-Weekends (Sat & Sun): £140/hour + VAT
+Mon-Fri 6pm-8am: £160/hour + VAT
+Weekends (Sat & Sun): £160/hour + VAT
 
 Emergency Drainage
 Mon-Fri 8am-6pm: £120/hour + VAT
-Mon-Fri 6pm-8am: £140/hour + VAT
-Weekends (Sat & Sun): £140/hour + VAT
+Mon-Fri 6pm-8am: £160/hour + VAT
+Weekends (Sat & Sun): £160/hour + VAT
 
 Plumbing Service
 Mon-Fri 8am-6pm: £105/hour + VAT
@@ -20,20 +20,20 @@ Fixed price: £175 + VAT
 
 Blocked Toilet
 Mon-Fri 8am-6pm: £120/hour + VAT
-Mon-Fri 6pm-8am: £140/hour + VAT
-Weekends (Sat & Sun): £140/hour + VAT
+Mon-Fri 6pm-8am: £160/hour + VAT
+Weekends (Sat & Sun): £160/hour + VAT
 --------------------------------------------------------
 READING, SLOUGH AND ALL OTHER REGIONS
 
 Drainage Service
 Mon-Fri 8am-6pm: £110/hour + VAT
-Mon-Fri 6pm-8am: £130/hour + VAT
-Weekends (Sat & Sun): £130/hour + VAT
+Mon-Fri 6pm-8am: £160/hour + VAT
+Weekends (Sat & Sun): £160/hour + VAT
 
 Emergency Drainage
 Mon-Fri 8am-6pm: £110/hour + VAT
-Mon-Fri 6pm-8am: £130/hour + VAT
-Weekends (Sat & Sun): £130/hour + VAT
+Mon-Fri 6pm-8am: £160/hour + VAT
+Weekends (Sat & Sun): £160/hour + VAT
 
 Plumbing Service
 Mon-Fri 8am-6pm: £95/hour + VAT
@@ -45,5 +45,5 @@ Fixed price: £175 + VAT
 
 Blocked Toilet
 Mon-Fri 8am-6pm: £110/hour + VAT
-Mon-Fri 6pm-8am: £130/hour + VAT
-Weekends (Sat & Sun): £130/hour + VAT
+Mon-Fri 6pm-8am: £160/hour + VAT
+Weekends (Sat & Sun): £160/hour + VAT

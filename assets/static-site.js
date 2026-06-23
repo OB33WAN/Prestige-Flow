@@ -81,11 +81,11 @@
   };
   const REGION_RATES = {
     london: {
-      drainage: { daytime: '£120/hr', evening: '£140/hr', weekend: '£140/hr' },
+      drainage: { daytime: '£160/hr', evening: '£160/hr', weekend: '£160/hr' },
       plumbing: { daytime: '£105/hr', evening: '£115/hr', weekend: '£115/hr' }
     },
     regional: {
-      drainage: { daytime: '£110/hr', evening: '£130/hr', weekend: '£130/hr' },
+      drainage: { daytime: '£160/hr', evening: '£160/hr', weekend: '£160/hr' },
       plumbing: { daytime: '£95/hr', evening: '£110/hr', weekend: '£110/hr' }
     }
   };
@@ -313,23 +313,19 @@
     }
 
     return [
-      ['From £120/hour + VAT', 'From £110/hour + VAT'],
-      ['From £120/hr + VAT', 'From £110/hr + VAT'],
-      ['From £120/hr +VAT', 'From £110/hr +VAT'],
-      ['From £120/hr', 'From £110/hr'],
-      ['From £140/hour + VAT', 'From £130/hour + VAT'],
-      ['From £140/hr + VAT', 'From £130/hr + VAT'],
-      ['From £140/hr +VAT', 'From £130/hr +VAT'],
-      ['From £140/hr', 'From £130/hr'],
-      ['£120/hour + VAT', '£110/hour + VAT'],
-      ['£140/hour + VAT', '£130/hour + VAT'],
-      ['£120/hr + VAT', '£110/hr + VAT'],
-      ['£120/hr +VAT', '£110/hr +VAT'],
-      ['£140/hr + VAT', '£130/hr + VAT'],
-      ['£140/hr +VAT', '£130/hr +VAT'],
-      ['£120/hr', '£110/hr'],
-      ['£140/hr', '£130/hr'],
-      ['Evenings: £140/hr | Weekends: £140/hr', 'Evenings: £130/hr | Weekends: £130/hr']
+      ['From £160/hour + VAT', 'From £160/hour + VAT'],
+      ['From £160/hr + VAT', 'From £160/hr + VAT'],
+      ['From £160/hr +VAT', 'From £160/hr +VAT'],
+      ['From £160/hr', 'From £160/hr'],
+      ['£160/hour + VAT', '£160/hour + VAT'],
+      ['£160/hr + VAT', '£160/hr + VAT'],
+      ['£160/hr +VAT', '£160/hr +VAT'],
+      ['£160/hr', '£160/hr'],
+      ['Evenings: £160/hr | Weekends: £160/hr', 'Evenings: £160/hr | Weekends: £160/hr'],
+      // Edge cases from outdated pricing ranges
+      ['Drainage £120-160/hr', 'Drainage £160/hr'],
+      ['£120/hr', '£160/hr'],
+      ['£120/hour', '£160/hour']
     ].reduce((result, [londonValue, regionalValue]) => swapVariant(result, londonValue, regionalValue, region), text);
   };
 

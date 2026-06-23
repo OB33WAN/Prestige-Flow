@@ -8,7 +8,7 @@
       "url": "https://prestigeflow.co.uk",
       "telephone": "+447743565339",
       "email": "info@prestigeflow.co.uk",
-      "description": "Professional drainage and plumbing services across London and Southeast England. 24/7 emergency response, drain unblocking, CCTV surveys, and plumbing repairs.",
+      "description": "Professional drainage and plumbing services across London and Southeast England. 24/7 emergency response, drain unblocking, CCTV surveys, and plumbing repairs. Pricing: Drainage & Emergency Drainage £120/hr (Mon-Fri 8am-6pm) | £160/hr (Mon-Fri 6pm-8am & Weekends).",
       "priceRange": "GBP",
       "currenciesAccepted": "GBP",
       "paymentAccepted": "Cash, Credit Card, Debit Card, Bank Transfer",
@@ -43,6 +43,35 @@
         }
       ],
       "hasOfferCatalog": {
+        "offers": [
+          {
+            "@type": "Offer",
+            "name": "Drainage & Emergency Drainage - Daytime",
+            "price": "120.00",
+            "priceCurrency": "GBP",
+            "availability": "https://schema.org/InStock",
+            "eligibleRegion": ["GB"],
+            "itemOffered": {"@id": "https://prestigeflow.co.uk/services/drainage#service"}
+          },
+          {
+            "@type": "Offer",
+            "name": "Drainage & Emergency Drainage - Evenings & Weekends",
+            "price": "160.00",
+            "priceCurrency": "GBP",
+            "availability": "https://schema.org/InStock",
+            "eligibleRegion": ["GB"],
+            "itemOffered": {"@id": "https://prestigeflow.co.uk/services/drainage#service"}
+          },
+          {
+            "@type": "Offer",
+            "name": "Plumbing - Daytime",
+            "price": "105.00",
+            "priceCurrency": "GBP",
+            "availability": "https://schema.org/InStock",
+            "eligibleRegion": ["GB"],
+            "itemOffered": {"@id": "https://prestigeflow.co.uk/services/plumbing#service"}
+          }
+        ],
         "@type": "OfferCatalog",
         "name": "Drainage and Plumbing Services",
         "itemListElement": [
@@ -138,7 +167,7 @@
           "name": "Who can fix a blocked drain in London quickly?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Prestige Flow LTD provides fast blocked drain and emergency drainage services across London and Southeast England with 24/7 availability."
+            "text": "Prestige Flow LTD provides fast blocked drain and emergency drainage services across London and Southeast England with 24/7 availability. Drainage & Emergency Drainage pricing: £120/hr daytime, £160/hr evenings/weekends."
           }
         },
         {
