@@ -322,20 +322,22 @@
       ['£160/hr +VAT', '£160/hr +VAT'],
       ['£160/hr', '£160/hr'],
       ['Evenings: £160/hr | Weekends: £160/hr', 'Evenings: £160/hr | Weekends: £160/hr'],
-      ['From £120/hour + VAT', 'From £140/hour + VAT'],
-      ['From £120/hr + VAT', 'From £140/hr + VAT'],
-      ['From £120/hr +VAT', 'From £140/hr +VAT'],
-      ['From £120/hr', 'From £140/hr'],
-      ['£120/hour + VAT', '£140/hour + VAT'],
-      ['£120/hr + VAT', '£140/hr + VAT'],
-      ['£120/hr +VAT', '£140/hr +VAT'],
-      ['£120/hr', '£140/hr'],
+      ['From £120/hour + VAT', 'From £140/hr before 6pm'],
+      ['From £120/hr + VAT', 'From £140/hr before 6pm'],
+      ['From £120/hr +VAT', 'From £140/hr before 6pm'],
+      ['From £120/hr', 'From £140/hr before 6pm'],
+      ['£120/hour + VAT', '£140/hr before 6pm'],
+      ['£120/hr + VAT', '£140/hr before 6pm'],
+      ['£120/hr +VAT', '£140/hr before 6pm'],
+      ['£120/hr', '£140/hr before 6pm'],
+      ['Mon-Fri 8am-6pm: £120/hour + VAT', 'Mon-Fri 8am-6pm: £140/hr before 6pm'],
+      ['Mon-Fri 8am-6pm: £120/hr', 'Mon-Fri 8am-6pm: £140/hr before 6pm'],
       ['Evenings: £120/hr | Weekends: £120/hr', 'Evenings: £160/hr | Weekends: £160/hr'],
       // Edge cases from outdated pricing ranges
       ['Drainage £120-160/hr', 'Drainage £140/hr before 6pm, £160/hr after 6pm'],
       ['Drainage £120-140/hr', 'Drainage £140/hr before 6pm, £160/hr after 6pm'],
-      ['£120/hour', '£140/hour'],
-      ['£120/hr', '£140/hr']
+      ['£120/hour', '£140/hr before 6pm'],
+      ['£120/hr', '£140/hr before 6pm']
     ].reduce((result, [londonValue, regionalValue]) => swapVariant(result, londonValue, regionalValue, region), text);
   };
 
