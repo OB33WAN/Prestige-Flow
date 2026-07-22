@@ -60,6 +60,7 @@ Primary services: drainage, emergency drainage, plumbing, CCTV surveys, groundwo
 
 - Sitemap: https://prestigeflow.co.uk/sitemap.xml
 - Robots: https://prestigeflow.co.uk/robots.txt
+- AI index: https://prestigeflow.co.uk/ai.txt
 
 ## Keyword Map
 
