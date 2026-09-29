@@ -1,0 +1,29 @@
+{
+  "name": "Prestige Flow LTD",
+  "url": "https://prestigeflow.co.uk/",
+  "telephone": "+447743565339",
+  "email": "info@prestigeflow.co.uk",
+  "companyNumber": "12717009",
+  "companyRecord": "https://find-and-update.company-information.service.gov.uk/company/12717009",
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "23a Kenilworth Gardens",
+    "addressLocality": "Hayes",
+    "addressRegion": "England",
+    "postalCode": "UB4 0AY",
+    "addressCountry": "GB"
+  },
+  "areaServed": ["London", "Reading", "Slough", "Southeast England"],
+  "sameAs": [
+    "https://g.page/r/CWoooDggCsiQEBE",
+    "https://uk.trustpilot.com/review/prestigeflow.co.uk",
+    "https://www.facebook.com/profile.php?id=61562404768506",
+    "https://www.linkedin.com/company/prestige-flow-ltd",
+    "https://www.instagram.com/prestigeflowltd"
+  ],
+  "verification": {
+    "registeredOffice": "Companies House company record checked 2026-09-28; not evidence of a walk-in shop or local branches.",
+    "contactAndHours": "Existing contact page: office Monday-Friday 08:00-18:00; emergency telephone service 24/7.",
+    "socialProfiles": "Existing Google Business, Trustpilot, Facebook, LinkedIn, and Instagram profiles checked; do not invent additional review profiles, ratings or coordinates."
+  }
+}

@@ -5,6 +5,9 @@ window.PrestigeFlowConfig = {
     "fromName": "Prestige Flow Website",
     "businessEmail": "info@prestigeflow.co.uk"
   },
+  "crm": {
+    "apiBaseUrl": "https://prestige-flow.octopye.chatgpt.site"
+  },
   "reviews": {
     "google": {
       "endpoint": "",

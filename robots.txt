@@ -45,4 +45,3 @@ Allow: /
 
 # Crawl discovery
 Sitemap: https://prestigeflow.co.uk/sitemap.xml
-Host: prestigeflow.co.uk

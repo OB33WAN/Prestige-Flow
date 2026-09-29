@@ -14,7 +14,7 @@ foreach ($f in $files) {
   $c = [regex]::Replace(
     $c,
     'Our rates vary by region\. In London: Plumbing £105-115/hr \+VAT, Drainage £120-140/hr \+VAT, CCTV Surveys £175 \+VAT\. In Reading\s*&amp;\s*Slough: Plumbing £95-110/hr \+VAT, Drainage £110-130/hr \+VAT, CCTV Surveys £175 \+VAT\. Evening and weekend rates apply\. Contact us for a free, no-obligation quote for your specific requirements\.',
-    'Our rates are time-based across all service areas: Plumbing £105/hr (Mon-Fri 8am-6pm), £115/hr (Mon-Fri 6pm-8am), £115/hr (Weekends). Drainage and Emergency Drainage £120/hr (Mon-Fri 8am-6pm), £160/hr (Mon-Fri 6pm-8am), £160/hr (Weekends). CCTV Surveys £175 +VAT fixed price. Contact us for a free, no-obligation quote for your specific requirements.',
+    'Our rates are time-based across all service areas: Plumbing £105/hr (Mon-Fri 8am-6pm), £115/hr (Mon-Fri 6pm-8am), £115/hr (Weekends). Drainage and Emergency Drainage £140/hr (Mon-Fri 8am-6pm), £160/hr (Mon-Fri 6pm-8am), £160/hr (Weekends). CCTV Surveys £175 +VAT fixed price. Contact us for a free, no-obligation quote for your specific requirements.',
     'IgnoreCase'
   )
 
@@ -67,12 +67,6 @@ foreach ($f in $files) {
 
   # Regional language cleanup in area index pages
   $c = [regex]::Replace($c, 'competitive regional rates', 'same time-based pricing as all areas', 'IgnoreCase')
-
-  # Final pass: convert remaining £140 -> £160 for Drainage/Emergency Drainage
-  $c = [regex]::Replace($c, '£140/hr', '£160/hr', 'IgnoreCase')
-  $c = [regex]::Replace($c, '£140/hour', '£160/hour', 'IgnoreCase')
-  $c = [regex]::Replace($c, '£140/hr \+VAT', '£160/hr +VAT', 'IgnoreCase')
-  $c = [regex]::Replace($c, '£140/hour \+ VAT', '£160/hour + VAT', 'IgnoreCase')
 
   if ($c -ne $o) {
     Set-Content -Path $f.FullName -Value $c -NoNewline

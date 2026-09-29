@@ -1,192 +1,73 @@
 {
   "@context": "https://schema.org",
-  "@graph": [
+  "@type": "Plumber",
+  "@id": "https://prestigeflow.co.uk/#business",
+  "name": "Prestige Flow LTD",
+  "url": "https://prestigeflow.co.uk/",
+  "telephone": "+447743565339",
+  "email": "info@prestigeflow.co.uk",
+  "image": "https://prestigeflow.co.uk/logo.jpg",
+  "logo": "https://prestigeflow.co.uk/logo.jpg",
+  "identifier": {
+    "@type": "PropertyValue",
+    "propertyID": "Companies House company number",
+    "value": "12717009"
+  },
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "23a Kenilworth Gardens",
+    "addressLocality": "Hayes",
+    "addressRegion": "England",
+    "postalCode": "UB4 0AY",
+    "addressCountry": "GB"
+  },
+  "areaServed": [
+    "London",
+    "Reading",
+    "Slough",
+    "Southeast England"
+  ],
+  "sameAs": [
+    "https://g.page/r/CWoooDggCsiQEBE",
+    "https://uk.trustpilot.com/review/prestigeflow.co.uk",
+    "https://www.facebook.com/profile.php?id=61562404768506",
+    "https://www.linkedin.com/company/prestige-flow-ltd",
+    "https://www.instagram.com/prestigeflowltd"
+  ],
+  "openingHoursSpecification": [
     {
-      "@type": "LocalBusiness",
-      "@id": "https://prestigeflow.co.uk#localbusiness",
-      "name": "Prestige Flow LTD",
-      "url": "https://prestigeflow.co.uk",
-      "telephone": "+447743565339",
-      "email": "info@prestigeflow.co.uk",
-      "description": "Professional drainage and plumbing services across London and Southeast England. 24/7 emergency response, drain unblocking, CCTV surveys, and plumbing repairs. Pricing: Drainage & Emergency Drainage £140/hr (Mon-Fri 8am-6pm) | £160/hr (Mon-Fri 6pm-8am & Weekends).",
-      "priceRange": "GBP",
-      "currenciesAccepted": "GBP",
-      "paymentAccepted": "Cash, Credit Card, Debit Card, Bank Transfer",
-      "address": {
-        "@type": "PostalAddress",
-        "streetAddress": "23a Kenilworth Gardens",
-        "addressLocality": "Hayes",
-        "addressRegion": "England",
-        "postalCode": "UB4 0AY",
-        "addressCountry": "GB"
-      },
-      "areaServed": [
-        "London",
-        "Reading",
-        "Slough",
-        "Southeast England"
+      "@type": "OpeningHoursSpecification",
+      "dayOfWeek": [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday"
       ],
-      "openingHoursSpecification": [
-        {
-          "@type": "OpeningHoursSpecification",
-          "dayOfWeek": [
-            "Monday",
-            "Tuesday",
-            "Wednesday",
-            "Thursday",
-            "Friday",
-            "Saturday",
-            "Sunday"
-          ],
-          "opens": "00:00",
-          "closes": "23:59"
-        }
-      ],
-      "hasOfferCatalog": {
-        "offers": [
-          {
-            "@type": "Offer",
-            "name": "Drainage & Emergency Drainage - Daytime",
-            "price": "140.00",
-            "priceCurrency": "GBP",
-            "availability": "https://schema.org/InStock",
-            "eligibleRegion": ["GB"],
-            "itemOffered": {"@id": "https://prestigeflow.co.uk/services/drainage#service"}
-          },
-          {
-            "@type": "Offer",
-            "name": "Drainage & Emergency Drainage - Evenings & Weekends",
-            "price": "160.00",
-            "priceCurrency": "GBP",
-            "availability": "https://schema.org/InStock",
-            "eligibleRegion": ["GB"],
-            "itemOffered": {"@id": "https://prestigeflow.co.uk/services/drainage#service"}
-          },
-          {
-            "@type": "Offer",
-            "name": "Plumbing - Daytime",
-            "price": "105.00",
-            "priceCurrency": "GBP",
-            "availability": "https://schema.org/InStock",
-            "eligibleRegion": ["GB"],
-            "itemOffered": {"@id": "https://prestigeflow.co.uk/services/plumbing#service"}
-          }
-        ],
-        "@type": "OfferCatalog",
-        "name": "Drainage and Plumbing Services",
-        "itemListElement": [
-          {
-            "@type": "Offer",
-            "itemOffered": {
-              "@id": "https://prestigeflow.co.uk/services/drainage#service"
-            }
-          },
-          {
-            "@type": "Offer",
-            "itemOffered": {
-              "@id": "https://prestigeflow.co.uk/services/plumbing#service"
-            }
-          }
-        ]
-      },
-      "potentialAction": [
-        {
-          "@type": "ReserveAction",
-          "name": "Book Online",
-          "target": {
-            "@type": "EntryPoint",
-            "urlTemplate": "https://prestigeflow.co.uk/booking"
-          }
-        },
-        {
-          "@type": "CommunicateAction",
-          "name": "Call 24/7 Emergency Team",
-          "target": {
-            "@type": "EntryPoint",
-            "urlTemplate": "tel:+447743565339"
-          }
-        }
-      ],
-      "sameAs": [
-        "https://www.instagram.com/prestigeflowltd",
-        "https://www.facebook.com/prestigeflowltd",
-        "https://www.linkedin.com/company/prestige-flow-ltd",
-        "https://maps.app.goo.gl/5yFzWuK9G7n6xAp48"
-      ]
-    },
-    {
-      "@type": "Service",
-      "@id": "https://prestigeflow.co.uk/services/drainage#service",
-      "name": "Drainage Service",
-      "serviceType": [
-        "Drainage Service",
-        "Drain Unblocking",
-        "Emergency Drainage",
-        "CCTV Drain Surveys"
-      ],
-      "description": "Professional drainage service for blocked drains, emergency drainage issues, CCTV surveys, and long-term maintenance.",
-      "provider": {
-        "@id": "https://prestigeflow.co.uk#localbusiness"
-      },
-      "areaServed": [
-        "London",
-        "Reading",
-        "Slough",
-        "Southeast England"
-      ],
-      "url": "https://prestigeflow.co.uk/services/drainage"
-    },
-    {
-      "@type": "Service",
-      "@id": "https://prestigeflow.co.uk/services/plumbing#service",
-      "name": "Plumbing Service",
-      "serviceType": [
-        "Plumbing Service",
-        "Emergency Plumber",
-        "Pipe Repairs",
-        "Leak Detection"
-      ],
-      "description": "Professional plumbing service for urgent repairs, leaks, pipework, and planned installations with clear pricing.",
-      "provider": {
-        "@id": "https://prestigeflow.co.uk#localbusiness"
-      },
-      "areaServed": [
-        "London",
-        "Reading",
-        "Slough",
-        "Southeast England"
-      ],
-      "url": "https://prestigeflow.co.uk/services/plumbing"
-    },
-    {
-      "@type": "FAQPage",
-      "@id": "https://prestigeflow.co.uk#faq-service-intent",
-      "mainEntity": [
-        {
-          "@type": "Question",
-          "name": "Who can fix a blocked drain in London quickly?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Prestige Flow LTD provides fast blocked drain and emergency drainage services across London and Southeast England with 24/7 availability. Drainage & Emergency Drainage pricing: £140/hr before 6pm, £160/hr after 6pm."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "Do you offer emergency plumbing and drainage services 24/7?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Yes. Prestige Flow LTD offers 24/7 emergency plumbing and drainage support for urgent issues including blocked drains and burst pipes."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "Can I book drainage or plumbing online?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Yes. You can book online at https://prestigeflow.co.uk/booking and request a quote at https://prestigeflow.co.uk/quote."
-          }
-        }
-      ]
+      "opens": "08:00",
+      "closes": "18:00"
     }
-  ]
+  ],
+  "contactPoint": {
+    "@type": "ContactPoint",
+    "telephone": "+447743565339",
+    "contactType": "24/7 emergency service",
+    "availableLanguage": "English",
+    "hoursAvailable": [
+      {
+        "@type": "OpeningHoursSpecification",
+        "dayOfWeek": [
+          "Monday",
+          "Tuesday",
+          "Wednesday",
+          "Thursday",
+          "Friday",
+          "Saturday",
+          "Sunday"
+        ],
+        "opens": "00:00",
+        "closes": "23:59"
+      }
+    ]
+  }
 }

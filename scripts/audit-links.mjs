@@ -10,6 +10,7 @@ async function getIndexFiles(dir) {
 
   for (const entry of entries) {
     const fullPath = path.join(dir, entry.name);
+    if (['.git', 'node_modules', 'dist', 'docs', '.public-site'].includes(entry.name)) continue;
     if (entry.isDirectory()) {
       files.push(...await getIndexFiles(fullPath));
       continue;

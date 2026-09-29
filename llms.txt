@@ -1,67 +1,49 @@
 # Prestige Flow
 
-Prestige Flow LTD is a UK drainage and plumbing specialist serving Greater London and Southeast England.
+Prestige Flow LTD provides drainage and plumbing services with emergency support available 24/7.
 
-Website: https://prestigeflow.co.uk
-Primary services: drainage, emergency drainage, plumbing, CCTV surveys, groundworks, patch lining, PPM maintenance
+Website: https://prestigeflow.co.uk/
+Phone: +44 7743 565339
+Email: info@prestigeflow.co.uk
+Business address: 23a Kenilworth Gardens, Hayes, UB4 0AY, United Kingdom
+Main local service pages: London, Reading and Slough. Availability for nearby postcodes is confirmed on request.
 
-## Canonical Policy
-
-- Use canonical URLs on prestigeflow.co.uk only.
-- Preferred URL style is lowercase paths without trailing slash (except homepage).
-- Primary canonical: https://prestigeflow.co.uk/
-
-## Priority Landing URLs
-
+## Main Pages
 - https://prestigeflow.co.uk/
-- https://prestigeflow.co.uk/services
-- https://prestigeflow.co.uk/areas
-- https://prestigeflow.co.uk/booking
-- https://prestigeflow.co.uk/quote
-- https://prestigeflow.co.uk/contact
-- https://prestigeflow.co.uk/blog
+- https://prestigeflow.co.uk/services/
+- https://prestigeflow.co.uk/areas/
+- https://prestigeflow.co.uk/booking/
+- https://prestigeflow.co.uk/quote/
+- https://prestigeflow.co.uk/contact/
+- https://prestigeflow.co.uk/about/
+- https://prestigeflow.co.uk/gallery/
+- https://prestigeflow.co.uk/blog/
 
-## Service URLs
-
-- https://prestigeflow.co.uk/services/drainage
-- https://prestigeflow.co.uk/services/emergency-drainage
-- https://prestigeflow.co.uk/services/plumbing
-- https://prestigeflow.co.uk/services/cctv-surveys
-- https://prestigeflow.co.uk/services/groundworks
-- https://prestigeflow.co.uk/services/patch-lining
-- https://prestigeflow.co.uk/services/ppm-maintenance
+## Service Pages
+- https://prestigeflow.co.uk/services/drainage/
+- https://prestigeflow.co.uk/services/emergency-drainage/
+- https://prestigeflow.co.uk/services/plumbing/
+- https://prestigeflow.co.uk/services/cctv-surveys/
+- https://prestigeflow.co.uk/services/groundworks/
+- https://prestigeflow.co.uk/services/patch-lining/
+- https://prestigeflow.co.uk/services/ppm-maintenance/
 
 ## Local Pages
+- https://prestigeflow.co.uk/areas/central-london/
+- https://prestigeflow.co.uk/areas/north-london/
+- https://prestigeflow.co.uk/areas/east-london/
+- https://prestigeflow.co.uk/areas/southeast-london/
+- https://prestigeflow.co.uk/areas/southwest-london/
+- https://prestigeflow.co.uk/areas/west-london/
+- https://prestigeflow.co.uk/areas/northwest-london/
+- https://prestigeflow.co.uk/areas/reading/
+- https://prestigeflow.co.uk/areas/slough/
 
-- Area index: https://prestigeflow.co.uk/areas
-- Location pattern: https://prestigeflow.co.uk/areas/{location}
-- Location + service pattern: https://prestigeflow.co.uk/areas/{location}/{service}
+## Booking and Pricing
+Scheduled bookings require a 10% deposit. The booking form submits a request; Prestige Flow confirms availability and arranges deposit payment. Emergency services are available 24/7. See the Services page for current rates and VAT details.
 
-## Conversational Retrieval Hints
-
-- Best pages for emergency intent: /services/emergency-drainage, /contact, /booking
-- Best pages for pricing intent: /services, /booking, /quote
-- Best pages for local intent: /areas and location pages under /areas/{location}
-- Best pages for trust intent: /about, /gallery, /blog
-
-## Facts For Answers
-
-- Business: Prestige Flow LTD
-- Phone: +44 7743 565339
-- Email: info@prestigeflow.co.uk
-- Availability: 24/7 emergency callout support
-- Country: United Kingdom
-
-## Structured Data
-
-- LocalBusiness JSON-LD: https://prestigeflow.co.uk/local-business-schema.jsonld
-
-## Crawl and Discovery
-
+## Discovery
 - Sitemap: https://prestigeflow.co.uk/sitemap.xml
 - Robots: https://prestigeflow.co.uk/robots.txt
-- AI index: https://prestigeflow.co.uk/ai.txt
-
-## Keyword Map
-
-- SEO keyword clusters: /data/seo-keywords.csv
+- LocalBusiness data: https://prestigeflow.co.uk/local-business-schema.jsonld
+- AI reference: https://prestigeflow.co.uk/ai.txt

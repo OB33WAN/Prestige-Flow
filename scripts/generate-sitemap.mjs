@@ -1,11 +1,12 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
+import { load } from 'cheerio';
 
 const rootDir = path.resolve(process.cwd());
 const siteUrl = process.env.SITE_URL || 'https://prestigeflow.co.uk';
 
-const skipDirs = new Set(['.git', 'node_modules', 'dist', 'docs']);
+const skipDirs = new Set(['.git', 'node_modules', 'dist', 'docs', '.public-site']);
 
 function toPosixPath(value) {
   return value.split(path.sep).join('/');
@@ -33,23 +34,6 @@ function routeFromIndex(root, filePath) {
   }
 
   return `/${route}`;
-}
-
-function computePriority(route) {
-  if (route === '/') return '1.0';
-  if (route === '/services' || route === '/areas' || route === '/booking' || route === '/quote' || route === '/contact') return '0.9';
-  if (route.startsWith('/services/')) return '0.85';
-  if (route.startsWith('/areas/') && route.split('/').length <= 3) return '0.8';
-  if (route.startsWith('/areas/') && route.split('/').length >= 4) return '0.75';
-  if (route.startsWith('/blog/')) return '0.7';
-  return '0.65';
-}
-
-function computeChangeFreq(route) {
-  if (route === '/') return 'weekly';
-  if (route.startsWith('/blog/')) return 'monthly';
-  if (route === '/blog') return 'weekly';
-  return 'monthly';
 }
 
 async function collectIndexFiles(dir) {
@@ -87,8 +71,6 @@ function buildXml(urls) {
     lines.push('  <url>');
     lines.push(`    <loc>${item.loc}</loc>`);
     lines.push(`    <lastmod>${item.lastmod}</lastmod>`);
-    lines.push(`    <changefreq>${item.changefreq}</changefreq>`);
-    lines.push(`    <priority>${item.priority}</priority>`);
     lines.push('  </url>');
   }
 
@@ -102,16 +84,18 @@ async function main() {
   const records = [];
 
   for (const indexFile of indexFiles) {
+    const $ = load(await fs.readFile(indexFile, 'utf8'));
+    if ($('meta[http-equiv="refresh"]').length || /noindex/i.test($('meta[name="robots"]').attr('content') || '')) continue;
     const stat = await fs.stat(indexFile);
     const route = routeFromIndex(rootDir, indexFile);
-    const loc = route === '/' ? `${siteUrl}/` : `${siteUrl}${route}`;
+    const expectedLoc = route === '/' ? `${siteUrl}/` : `${siteUrl}${route}/`;
+    const loc = $('link[rel="canonical"]').attr('href');
+    if (!loc || loc !== expectedLoc) throw new Error(`Missing or unexpected canonical in ${indexFile}: ${loc || '(missing)'}`);
 
     records.push({
       route,
       loc,
-      lastmod: formatDate(stat.mtime),
-      changefreq: computeChangeFreq(route),
-      priority: computePriority(route)
+      lastmod: formatDate(stat.mtime)
     });
   }
 

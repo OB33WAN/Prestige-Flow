@@ -1,0 +1,432 @@
+[
+  {
+    "slug": "abbots-langley",
+    "name": "Abbots Langley",
+    "region": "Hertfordshire"
+  },
+  {
+    "slug": "amersham",
+    "name": "Amersham",
+    "region": "Buckinghamshire"
+  },
+  {
+    "slug": "ascot",
+    "name": "Ascot",
+    "region": "Berkshire"
+  },
+  {
+    "slug": "aylesbury",
+    "name": "Aylesbury",
+    "region": "Buckinghamshire"
+  },
+  {
+    "slug": "bagshot",
+    "name": "Bagshot",
+    "region": "Surrey"
+  },
+  {
+    "slug": "basingstoke",
+    "name": "Basingstoke",
+    "region": "Hampshire"
+  },
+  {
+    "slug": "beaconsfield",
+    "name": "Beaconsfield",
+    "region": "Buckinghamshire"
+  },
+  {
+    "slug": "beckenham",
+    "name": "Beckenham",
+    "region": "Kent"
+  },
+  {
+    "slug": "berkhamsted",
+    "name": "Berkhamsted",
+    "region": "Hertfordshire"
+  },
+  {
+    "slug": "bexley",
+    "name": "Bexley",
+    "region": "Kent"
+  },
+  {
+    "slug": "borehamwood",
+    "name": "Borehamwood",
+    "region": "Hertfordshire"
+  },
+  {
+    "slug": "bourne-end",
+    "name": "Bourne End",
+    "region": "Buckinghamshire"
+  },
+  {
+    "slug": "bracknell",
+    "name": "Bracknell",
+    "region": "Berkshire"
+  },
+  {
+    "slug": "brighton",
+    "name": "Brighton",
+    "region": "East Sussex"
+  },
+  {
+    "slug": "bromley",
+    "name": "Bromley",
+    "region": "Kent"
+  },
+  {
+    "slug": "bushey",
+    "name": "Bushey",
+    "region": "Hertfordshire"
+  },
+  {
+    "slug": "camberley",
+    "name": "Camberley",
+    "region": "Surrey"
+  },
+  {
+    "slug": "cambridge",
+    "name": "Cambridge",
+    "region": "Cambridgeshire"
+  },
+  {
+    "slug": "central-london",
+    "name": "Central London",
+    "region": "London"
+  },
+  {
+    "slug": "chesham",
+    "name": "Chesham",
+    "region": "Buckinghamshire"
+  },
+  {
+    "slug": "chislehurst",
+    "name": "Chislehurst",
+    "region": "Kent"
+  },
+  {
+    "slug": "cobham",
+    "name": "Cobham",
+    "region": "Surrey"
+  },
+  {
+    "slug": "crawley",
+    "name": "Crawley",
+    "region": "West Sussex"
+  },
+  {
+    "slug": "croydon",
+    "name": "Croydon",
+    "region": "South London"
+  },
+  {
+    "slug": "dartford",
+    "name": "Dartford",
+    "region": "Kent"
+  },
+  {
+    "slug": "east-london",
+    "name": "East London",
+    "region": "London"
+  },
+  {
+    "slug": "enfield",
+    "name": "Enfield",
+    "region": "Outer London"
+  },
+  {
+    "slug": "epsom",
+    "name": "Epsom",
+    "region": "Surrey"
+  },
+  {
+    "slug": "farnborough",
+    "name": "Farnborough",
+    "region": "Hampshire"
+  },
+  {
+    "slug": "fleet",
+    "name": "Fleet",
+    "region": "Hampshire"
+  },
+  {
+    "slug": "gerrards-cross",
+    "name": "Gerrards Cross",
+    "region": "Buckinghamshire"
+  },
+  {
+    "slug": "gravesend",
+    "name": "Gravesend",
+    "region": "Kent"
+  },
+  {
+    "slug": "guildford",
+    "name": "Guildford",
+    "region": "Surrey"
+  },
+  {
+    "slug": "hampton",
+    "name": "Hampton",
+    "region": "Southwest London"
+  },
+  {
+    "slug": "harrow",
+    "name": "Harrow",
+    "region": "Outer London"
+  },
+  {
+    "slug": "hemel-hempstead",
+    "name": "Hemel Hempstead",
+    "region": "Hertfordshire"
+  },
+  {
+    "slug": "henley-on-thames",
+    "name": "Henley-on-Thames",
+    "region": "Oxfordshire"
+  },
+  {
+    "slug": "high-wycombe",
+    "name": "High Wycombe",
+    "region": "Buckinghamshire"
+  },
+  {
+    "slug": "hitchin",
+    "name": "Hitchin",
+    "region": "Hertfordshire"
+  },
+  {
+    "slug": "hook",
+    "name": "Hook",
+    "region": "Hampshire"
+  },
+  {
+    "slug": "horsham",
+    "name": "Horsham",
+    "region": "West Sussex"
+  },
+  {
+    "slug": "iver",
+    "name": "Iver",
+    "region": "Buckinghamshire"
+  },
+  {
+    "slug": "kings-langley",
+    "name": "Kings Langley",
+    "region": "Hertfordshire"
+  },
+  {
+    "slug": "kingston",
+    "name": "Kingston upon Thames",
+    "region": "Surrey"
+  },
+  {
+    "slug": "leatherhead",
+    "name": "Leatherhead",
+    "region": "Surrey"
+  },
+  {
+    "slug": "luton",
+    "name": "Luton",
+    "region": "Bedfordshire"
+  },
+  {
+    "slug": "maidenhead",
+    "name": "Maidenhead",
+    "region": "Berkshire"
+  },
+  {
+    "slug": "maidstone",
+    "name": "Maidstone",
+    "region": "Kent"
+  },
+  {
+    "slug": "marlow",
+    "name": "Marlow",
+    "region": "Buckinghamshire"
+  },
+  {
+    "slug": "milton-keynes",
+    "name": "Milton Keynes",
+    "region": "Buckinghamshire"
+  },
+  {
+    "slug": "newbury",
+    "name": "Newbury",
+    "region": "West Berkshire"
+  },
+  {
+    "slug": "north-london",
+    "name": "North London",
+    "region": "London"
+  },
+  {
+    "slug": "northwest-london",
+    "name": "Northwest London",
+    "region": "London"
+  },
+  {
+    "slug": "orpington",
+    "name": "Orpington",
+    "region": "Kent"
+  },
+  {
+    "slug": "oxford",
+    "name": "Oxford",
+    "region": "Oxfordshire"
+  },
+  {
+    "slug": "portsmouth",
+    "name": "Portsmouth",
+    "region": "Hampshire"
+  },
+  {
+    "slug": "princes-risborough",
+    "name": "Princes Risborough",
+    "region": "Buckinghamshire"
+  },
+  {
+    "slug": "radlett",
+    "name": "Radlett",
+    "region": "Hertfordshire"
+  },
+  {
+    "slug": "reading",
+    "name": "Reading",
+    "region": "Berkshire"
+  },
+  {
+    "slug": "reigate",
+    "name": "Reigate",
+    "region": "Surrey"
+  },
+  {
+    "slug": "richmond",
+    "name": "Richmond",
+    "region": "Southwest London"
+  },
+  {
+    "slug": "rickmansworth",
+    "name": "Rickmansworth",
+    "region": "Hertfordshire"
+  },
+  {
+    "slug": "sevenoaks",
+    "name": "Sevenoaks",
+    "region": "Kent"
+  },
+  {
+    "slug": "slough",
+    "name": "Slough",
+    "region": "Berkshire"
+  },
+  {
+    "slug": "southampton",
+    "name": "Southampton",
+    "region": "Hampshire"
+  },
+  {
+    "slug": "southeast-london",
+    "name": "Southeast London",
+    "region": "London"
+  },
+  {
+    "slug": "southwest-london",
+    "name": "Southwest London",
+    "region": "London"
+  },
+  {
+    "slug": "st-albans",
+    "name": "St Albans",
+    "region": "Hertfordshire"
+  },
+  {
+    "slug": "staines",
+    "name": "Staines",
+    "region": "Surrey"
+  },
+  {
+    "slug": "stevenage",
+    "name": "Stevenage",
+    "region": "Hertfordshire"
+  },
+  {
+    "slug": "sutton",
+    "name": "Sutton",
+    "region": "Surrey"
+  },
+  {
+    "slug": "swanley",
+    "name": "Swanley",
+    "region": "Kent"
+  },
+  {
+    "slug": "thatcham",
+    "name": "Thatcham",
+    "region": "West Berkshire"
+  },
+  {
+    "slug": "tonbridge",
+    "name": "Tonbridge",
+    "region": "Kent"
+  },
+  {
+    "slug": "tunbridge-wells",
+    "name": "Tunbridge Wells",
+    "region": "Kent"
+  },
+  {
+    "slug": "twickenham",
+    "name": "Twickenham",
+    "region": "Southwest London"
+  },
+  {
+    "slug": "watford",
+    "name": "Watford",
+    "region": "Hertfordshire"
+  },
+  {
+    "slug": "west-london",
+    "name": "West London",
+    "region": "London"
+  },
+  {
+    "slug": "west-wickham",
+    "name": "West Wickham",
+    "region": "Kent"
+  },
+  {
+    "slug": "weybridge",
+    "name": "Weybridge",
+    "region": "Surrey"
+  },
+  {
+    "slug": "wimbledon",
+    "name": "Wimbledon",
+    "region": "Southwest London"
+  },
+  {
+    "slug": "winchester",
+    "name": "Winchester",
+    "region": "Hampshire"
+  },
+  {
+    "slug": "windsor",
+    "name": "Windsor",
+    "region": "Berkshire"
+  },
+  {
+    "slug": "woking",
+    "name": "Woking",
+    "region": "Surrey"
+  },
+  {
+    "slug": "wokingham",
+    "name": "Wokingham",
+    "region": "Berkshire"
+  },
+  {
+    "slug": "worthing",
+    "name": "Worthing",
+    "region": "West Sussex"
+  }
+]

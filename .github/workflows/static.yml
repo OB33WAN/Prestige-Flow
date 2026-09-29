@@ -24,19 +24,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Inject analytics (GTM)
-        run: node scripts/inject-analytics.mjs
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
 
-      - name: Inject Google Business Profile schema
-        run: node scripts/inject-gbp.mjs
-
-      - name: Generate sitemap.xml
-        run: node scripts/generate-sitemap.mjs
+      - run: npm ci
+      - run: npm run build
+      - run: npm run check
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: .public-site
 
       - name: Deploy to GitHub Pages
         id: deployment

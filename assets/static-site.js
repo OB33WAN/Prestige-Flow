@@ -24,7 +24,8 @@
         plumbing: '',
         'cctv-survey': ''
       }
-    }
+    },
+    crm: { apiBaseUrl: '' }
   };
 
   const mergeConfig = (base, incoming) => ({
@@ -49,10 +50,12 @@
       paymentLinksBySku: {
         ...(incoming?.stripe?.paymentLinksBySku || {})
       }
-    }
+    },
+    crm: { ...base.crm, ...(incoming?.crm || {}) }
   });
 
   const config = mergeConfig(DEFAULT_CONFIG, window.PrestigeFlowConfig || {});
+  const crmApiBaseUrl = String(config.crm?.apiBaseUrl || window.location.origin).trim().replace(/\/+$/, '');
 
   const onReady = (fn) => {
     if (document.readyState === 'loading') {
@@ -71,9 +74,11 @@
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 
-  const REGION_KEY = 'pf_region';
-  const REGION_SOURCE_KEY = 'pf_region_source';
-  const GEO_CACHE_KEY = 'pf_region_geo_cache';
+  // Version the auto-detected area state so old manually selected regions do
+  // not keep overriding location-based prices after the selector is removed.
+  const REGION_KEY = 'pf_region_v2';
+  const REGION_SOURCE_KEY = 'pf_region_source_v2';
+  const GEO_CACHE_KEY = 'pf_region_geo_cache_v2';
   const GEO_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
   const REGION_LABELS = {
     london: 'London',
@@ -82,12 +87,38 @@
   const REGION_RATES = {
     london: {
       drainage: { daytime: '£140/hr', evening: '£160/hr', weekend: '£160/hr' },
-      plumbing: { daytime: '£105/hr', evening: '£115/hr', weekend: '£115/hr' }
+      plumbing: { daytime: '£105/hr', evening: '£115/hr', weekend: '£115/hr' },
+      cctv: '£175 + VAT (fixed)'
     },
     regional: {
       drainage: { daytime: '£140/hr', evening: '£160/hr', weekend: '£160/hr' },
-      plumbing: { daytime: '£95/hr', evening: '£110/hr', weekend: '£110/hr' }
+      plumbing: { daytime: '£95/hr', evening: '£110/hr', weekend: '£110/hr' },
+      cctv: '£175 + VAT (fixed)'
     }
+  };
+  let liveRatesLoaded = false;
+  let liveRateAmounts = null;
+  let liveCheckoutEnabled = false;
+  const loadLiveRates = async () => {
+    const base = crmApiBaseUrl;
+    if (!base) return;
+    try {
+      const response = await withTimeout(fetch(`${base}/api/public/rates`, { mode: 'cors', credentials: 'omit', cache: 'no-store' }), 5000);
+      if (!response.ok) return;
+      const { rates, checkoutEnabled } = await response.json();
+      liveRateAmounts = rates;
+      liveCheckoutEnabled = checkoutEnabled === true;
+      const moneyPerHour = pence => `£${(Number(pence) / 100).toFixed(Number(pence) % 100 ? 2 : 0)}/hr`;
+      for (const [key, code] of [['london','london'],['regional','regional']]) {
+        REGION_RATES[key] = {
+          drainage: Object.fromEntries(['daytime','evening','weekend'].map(period => [period,moneyPerHour(rates?.[code]?.DRAIN?.[period])])),
+          plumbing: Object.fromEntries(['daytime','evening','weekend'].map(period => [period,moneyPerHour(rates?.[code]?.PLUM?.[period])])),
+          cctv: `£${(Number(rates?.[code]?.CCTV?.fixed || 0) / 100).toFixed(2)} + VAT (fixed)`
+        };
+      }
+      liveRatesLoaded = true;
+      applyRegionToPage(getStoredRegion());
+    } catch (_) { /* Show the approved fallback prices until the CRM is reachable. */ }
   };
   const PERIOD_BADGE_LABELS = {
     daytime: 'Daytime Rate (8am-6pm)',
@@ -117,6 +148,13 @@
     }
   };
 
+  try {
+    // Drop the now-retired manual override so it cannot mislabel automatic rates.
+    window.localStorage.removeItem('pf_region');
+    window.localStorage.removeItem('pf_region_source');
+    window.localStorage.removeItem('pf_region_geo_cache');
+  } catch (_) { /* Ignore restricted storage. */ }
+
   const normalizeRegion = (value) => value === 'regional' ? 'regional' : 'london';
 
   const getRegionLabel = (region) => REGION_LABELS[normalizeRegion(region)] || REGION_LABELS.london;
@@ -130,9 +168,23 @@
 
   const getCurrentPeriod = () => {
     const now = new Date();
-    const day = now.getDay();
-    const hour = now.getHours();
-    if (day === 0 || day === 6) return 'weekend';
+    const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', weekday: 'short', hour: '2-digit', hourCycle: 'h23' }).formatToParts(now).map(p => [p.type, p.value]));
+    const hour = Number(parts.hour);
+    if (parts.weekday === 'Sun' || parts.weekday === 'Sat') return 'weekend';
+    return (hour >= 8 && hour < 18) ? 'daytime' : 'evening';
+  };
+
+  const getAppointmentPeriod = (dateValue, timeValue) => {
+    const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateValue || '');
+    const timeMatch = /^(\d{2}):(\d{2})$/.exec(timeValue || '');
+    if (!dateMatch || !timeMatch) return null;
+    const [, year, month, day] = dateMatch;
+    const [, hourText, minuteText] = timeMatch;
+    const weekday = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day))).getUTCDay();
+    const hour = Number(hourText);
+    const minute = Number(minuteText);
+    if (hour > 23 || minute > 59) return null;
+    if (weekday === 0 || weekday === 6) return 'weekend';
     return (hour >= 8 && hour < 18) ? 'daytime' : 'evening';
   };
 
@@ -146,6 +198,43 @@
     } finally {
       if (timeoutId !== null) window.clearTimeout(timeoutId);
     }
+  };
+
+  const submitCRMIntake = async (payload) => {
+    const baseUrl = crmApiBaseUrl;
+    if (!isConfigured(baseUrl)) return null;
+    const url = new URL(baseUrl);
+    if (url.protocol !== 'https:' && url.hostname !== 'localhost' && url.hostname !== '127.0.0.1') {
+      throw new Error('The CRM connection must use HTTPS.');
+    }
+    const normalized = {
+      form_type: payload.form_type || 'enquiry',
+      name: payload.name || payload.full_name || '',
+      email: payload.email || '',
+      phone: payload.phone || payload.telephone || '',
+      address: payload.address || '',
+      postcode: payload.postcode || '',
+      date: payload.date || '',
+      time: payload.time || '',
+      notes: payload.notes || payload.message || payload.details || '',
+      service: payload.service || '',
+      region: payload.region || '',
+      rate_period: payload.rate_period || '',
+      sku: payload.sku || '',
+      reference: payload.reference || '',
+      source: payload.source || window.location.href,
+      website: payload.website || ''
+    };
+    const response = await withTimeout(fetch(new URL('/api/public/intake', url.origin), {
+      method: 'POST',
+      mode: 'cors',
+      credentials: 'omit',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(normalized)
+    }), 15000);
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || result.accepted !== true) throw new Error(result.error || 'CRM could not save the enquiry.');
+    return result;
   };
 
   const isLondonGeo = (geo) => {
@@ -162,7 +251,7 @@
       }
     }
 
-    const fields = [geo?.city, geo?.region, geo?.region_code, geo?.county, geo?.timezone]
+    const fields = [geo?.city, geo?.region, geo?.region_code, geo?.county]
       .filter(Boolean)
       .map((value) => String(value).toLowerCase());
 
@@ -280,101 +369,45 @@
     return text.split(londonValue).join(target).split(regionalValue).join(target);
   };
 
-  const mutateServiceText = (text, serviceType, region) => {
-    if (!text || text.indexOf('£') === -1) return text;
-    if (
-      text.includes('In London:') ||
-      text.includes('Reading & Slough') ||
-      text.includes('rates vary by region') ||
-      text.includes('depending on your location') ||
-      text.includes('£95-£105') ||
-      text.includes('£105-115') ||
-      text.includes('£120-140')
-    ) {
-      return text;
-    }
-
-    if (serviceType === 'plumbing') {
-      return [
-        ['From £105/hour + VAT', 'From £95/hour + VAT'],
-        ['From £105/hr + VAT', 'From £95/hr + VAT'],
-        ['From £105/hr +VAT', 'From £95/hr +VAT'],
-        ['From £105/hr', 'From £95/hr'],
-        ['£105/hour + VAT', '£95/hour + VAT'],
-        ['£115/hour + VAT', '£110/hour + VAT'],
-        ['£105/hr + VAT', '£95/hr + VAT'],
-        ['£105/hr +VAT', '£95/hr +VAT'],
-        ['£115/hr + VAT', '£110/hr + VAT'],
-        ['£115/hr +VAT', '£110/hr +VAT'],
-        ['£105/hr', '£95/hr'],
-        ['£115/hr', '£110/hr'],
-        ['Evenings: £115/hr | Weekends: £115/hr', 'Evenings: £110/hr | Weekends: £110/hr']
-      ].reduce((result, [londonValue, regionalValue]) => swapVariant(result, londonValue, regionalValue, region), text);
-    }
-
-    return [
-      ['From £160/hour + VAT', 'From £160/hour + VAT'],
-      ['From £160/hr + VAT', 'From £160/hr + VAT'],
-      ['From £160/hr +VAT', 'From £160/hr +VAT'],
-      ['From £160/hr', 'From £160/hr'],
-      ['£160/hour + VAT', '£160/hour + VAT'],
-      ['£160/hr + VAT', '£160/hr + VAT'],
-      ['£160/hr +VAT', '£160/hr +VAT'],
-      ['£160/hr', '£160/hr'],
-      ['Evenings: £160/hr | Weekends: £160/hr', 'Evenings: £160/hr | Weekends: £160/hr'],
-      ['From £120/hour + VAT', 'From £140/hr before 6pm'],
-      ['From £120/hr + VAT', 'From £140/hr before 6pm'],
-      ['From £120/hr +VAT', 'From £140/hr before 6pm'],
-      ['From £120/hr', 'From £140/hr before 6pm'],
-      ['£120/hour + VAT', '£140/hr before 6pm'],
-      ['£120/hr + VAT', '£140/hr before 6pm'],
-      ['£120/hr +VAT', '£140/hr before 6pm'],
-      ['£120/hr', '£140/hr before 6pm'],
-      ['Mon-Fri 8am-6pm: £120/hour + VAT', 'Mon-Fri 8am-6pm: £140/hr before 6pm'],
-      ['Mon-Fri 8am-6pm: £120/hr', 'Mon-Fri 8am-6pm: £140/hr before 6pm'],
-      ['Evenings: £120/hr | Weekends: £120/hr', 'Evenings: £160/hr | Weekends: £160/hr'],
-      // Edge cases from outdated pricing ranges
-      ['Drainage £120-160/hr', 'Drainage £140/hr before 6pm, £160/hr after 6pm'],
-      ['Drainage £120-140/hr', 'Drainage £140/hr before 6pm, £160/hr after 6pm'],
-      ['£120/hour', '£140/hr before 6pm'],
-      ['£120/hr', '£140/hr before 6pm']
-    ].reduce((result, [londonValue, regionalValue]) => swapVariant(result, londonValue, regionalValue, region), text);
-  };
-
-  const getServiceTypeFromText = (value) => {
-    const text = String(value || '').toLowerCase();
-    if (text.includes('plumbing')) return 'plumbing';
-    if (text.includes('emergency drainage')) return 'drainage';
-    if (text.includes('blocked toilet')) return 'drainage';
-    if (text.includes('drainage')) return 'drainage';
-    return '';
-  };
-
+  const pricingOriginals = new WeakMap();
   const updateServiceRoots = (region) => {
-    const cardRoots = Array.from(document.querySelectorAll('.shadcn-card'));
-    cardRoots.forEach((root) => {
-      const heading = root.querySelector('h1, h2, h3, h4');
-      const serviceType = getServiceTypeFromText(heading?.textContent || root.textContent || '');
-      if (!serviceType) return;
-      walkTextNodes(root, (node) => {
-        const next = mutateServiceText(node.nodeValue, serviceType, region);
-        if (next !== node.nodeValue) node.nodeValue = next;
-      });
-    });
-
-    const path = window.location.pathname.replace(/\/$/, '') || '/';
     const main = document.querySelector('main');
-    let pageServiceType = '';
-    if (path === '/services/plumbing') pageServiceType = 'plumbing';
-    if (path === '/services/drainage' || path === '/services/emergency-drainage' || path === '/services/blocked-toilet') {
-      pageServiceType = 'drainage';
-    }
-    if (pageServiceType && main) {
-      walkTextNodes(main, (node) => {
-        const next = mutateServiceText(node.nodeValue, pageServiceType, region);
-        if (next !== node.nodeValue) node.nodeValue = next;
-      });
-    }
+    if (!main || window.location.pathname.startsWith('/booking')) return;
+    walkTextNodes(main, node => {
+      if (node.parentElement.closest('[data-pricing-table]')) return;
+      if (!pricingOriginals.has(node)) pricingOriginals.set(node, node.nodeValue);
+      const original = pricingOriginals.get(node);
+      if (!/£\s*\d+(?:\.\d{1,2})?(?=\s*(?:\/|per\b|\+))/i.test(original)) return;
+
+      // Change only copy inside an unambiguous plumbing service card/section.
+      // Broad mixed-service copy and the all-area comparison table stay intact.
+      let service = '';
+      for (let el = node.parentElement; el && el !== main.parentElement; el = el.parentElement) {
+        const text = el.textContent || '';
+        if (text.length > 320) continue;
+        const plumbing = /plumb/i.test(text);
+        const drainage = /drain/i.test(text);
+        const cctv = /cctv/i.test(text);
+        if (Number(plumbing) + Number(drainage) + Number(cctv) === 1) {
+          service = plumbing ? 'plumbing' : drainage ? 'drainage' : 'cctv';
+          break;
+        }
+      }
+      // Dedicated plumbing landing pages can have large copy blocks whose
+      // closest useful heading is outside the small-card text scan above.
+      if (!service && /\/plumbing(?:\/|$)/i.test(window.location.pathname)) service = 'plumbing';
+      if (!service) return;
+      const rateSet = REGION_RATES[normalizeRegion(region)];
+      const periodText = original.toLowerCase();
+      const oldAmount = Number(original.match(/£\s*(\d+(?:\.\d{1,2})?)/)?.[1]);
+      const originalRates = REGION_RATES[normalizeRegion(region)];
+      const knownDayRate = service === 'plumbing' ? [95,105].includes(oldAmount) : service === 'cctv' ? false : oldAmount === 140;
+      const pricePeriod = /weekend|\bsat(?:urday)?\b|\bsun(?:day)?\b/.test(periodText) ? 'weekend' : /8\s*am\s*(?:-|–|to)\s*6\s*pm|daytime/.test(periodText) ? 'daytime' : /6\s*pm\s*(?:-|–|to)\s*8\s*am|evening/.test(periodText) ? 'evening' : knownDayRate ? 'daytime' : /from\s*£/i.test(original) ? 'daytime' : getCurrentPeriod();
+      const priceText = service === 'plumbing' ? rateSet.plumbing[pricePeriod] : service === 'cctv' ? rateSet.cctv : rateSet.drainage[pricePeriod];
+      const numericRate = priceText.match(/[\d.]+/)?.[0];
+      if (!numericRate) return;
+      node.nodeValue = original.replace(/£\s*\d+(?:\.\d{1,2})?(?=\s*(?:\/|per\b|\+))/gi, '£' + numericRate);
+    });
   };
 
   const updateRegionDecorators = (region) => {
@@ -384,6 +417,7 @@
       const textNode = [...btn.childNodes].find((node) => node.nodeType === Node.TEXT_NODE && node.textContent.trim());
       if (textNode) textNode.textContent = label;
     });
+    document.querySelectorAll('[data-pf-auto-region]').forEach((tag) => { tag.textContent = label; });
 
     const inlineBanner = document.querySelector('[data-testid="button-region-selector-inline"]');
     if (inlineBanner) {
@@ -406,6 +440,12 @@
     const rateSet = REGION_RATES[normalizeRegion(region)] || REGION_RATES.london;
     const badge = document.querySelector('[data-testid="badge-current-rate"]');
     const rateDisplay = document.querySelector('[data-testid="current-rate-display"]');
+    document.documentElement.dataset.pfRateRegion = normalizeRegion(region);
+    document.documentElement.dataset.pfRatePeriod = period;
+    if (rateDisplay) {
+      rateDisplay.dataset.rateRegion = normalizeRegion(region);
+      rateDisplay.dataset.ratePeriod = period;
+    }
 
     if (badge) {
       const textNode = [...badge.childNodes].find((node) => node.nodeType === Node.TEXT_NODE && node.textContent.trim());
@@ -417,6 +457,10 @@
       if (prices[0]) prices[0].textContent = rateSet.drainage[period];
       if (prices[1]) prices[1].textContent = rateSet.plumbing[period];
     }
+
+    // Remove the global rate strip: service-specific prices remain in their
+    // own sections and the booking flow still loads the live regional rates.
+    document.querySelectorAll('[data-pf-current-rates]').forEach((element) => element.remove());
   };
 
   const applyRegionToPage = (region) => {
@@ -504,67 +548,44 @@
 
   const setupRegionSelectorButtons = () => {
     document.querySelectorAll('[data-testid^="button-region-selector"]').forEach((btn) => {
-      // Remove the redirect that was previously added by setupMenuButtonFallbacks
-      btn.replaceWith(btn.cloneNode(true));
-    });
-
-    document.querySelectorAll('[data-testid^="button-region-selector"]').forEach((btn) => {
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (regionDropdownVisible) {
-          closeRegionDropdown();
-        } else {
-          openRegionDropdown(btn);
-        }
-      });
-    });
-
-    document.addEventListener('click', (e) => {
-      if (regionDropdownVisible && regionDropdownEl && !regionDropdownEl.contains(e.target)) {
-        closeRegionDropdown();
-      }
-    });
-
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && regionDropdownVisible) closeRegionDropdown();
+      const label = document.createElement('span');
+      label.className = 'inline-flex items-center gap-1 text-primary font-medium';
+      label.dataset.pfAutoRegion = '';
+      label.textContent = getRegionLabel(getStoredRegion());
+      const nearbyText = [...(btn.parentElement?.childNodes || [])].find(node => node.nodeType === Node.TEXT_NODE && /Prices for:/i.test(node.textContent || ''));
+      if (nearbyText) nearbyText.textContent = nearbyText.textContent.replace(/Prices for:/i, 'Estimated prices for:');
+      btn.replaceWith(label);
     });
   };
 
   const setupAutomaticRegionPricing = () => {
-    const initialRegion = getStoredRegion();
-    applyRegionToPage(initialRegion);
-
-    if (storageGet(REGION_SOURCE_KEY) === 'manual') return;
-
-    // Fire both detection methods concurrently:
-    //   1. IP geo (ipapi.co) — silent, no permission, fastest (~1s)
-    //   2. Browser Geolocation + postcodes.io — triggers native permission
-    //      prompt immediately; result is postcode-accurate and overrides
-    //      the IP result even if it arrives slightly later.
-    //   3. Manual dropdown — permanently overrides; never touched here.
-    const applyIfNotManual = (region) => {
-      if (storageGet(REGION_SOURCE_KEY) !== 'manual') {
-        setStoredRegion(region, 'auto');
+    applyRegionToPage(getStoredRegion());
+    const source = storageGet(REGION_SOURCE_KEY);
+    if (source !== 'manual') {
+      detectRegionFromGeo().then(region => {
+        if (storageGet(REGION_SOURCE_KEY) === 'manual') return;
+        setStoredRegion(region, 'automatic');
         applyRegionToPage(region);
-      }
+      }).catch(() => {});
+    }
+    void loadLiveRates();
+
+    let lastPeriod = getCurrentPeriod();
+    const refreshTimeBasedRates = () => {
+      const currentPeriod = getCurrentPeriod();
+      if (currentPeriod === lastPeriod) return;
+      lastPeriod = currentPeriod;
+      applyRegionToPage(getStoredRegion());
     };
-
-    // IP geo — sets a fast initial result
-    detectRegionFromGeo()
-      .then(applyIfNotManual)
-      .catch(() => {});
-
-    // Browser geo + postcodes.io — requests permission, overrides IP when granted
-    detectRegionFromPostcode()
-      .then(applyIfNotManual)
-      .catch(() => {
-        if (!storageGet(REGION_SOURCE_KEY)) storageSet(REGION_SOURCE_KEY, 'default');
-      });
+    window.setInterval(refreshTimeBasedRates, 60000);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') refreshTimeBasedRates();
+    });
   };
 
   const formTypeFromElement = (form) => {
     const marker = (form.getAttribute('data-static-form') || '').toLowerCase();
+    if (['booking', 'quote', 'callback', 'contact'].includes(marker)) return marker;
     const text = (form.closest('section')?.textContent || '').toLowerCase();
 
     if (marker.includes('booking') || text.includes('book')) return 'booking';
@@ -594,25 +615,30 @@
   };
 
   const setupCookieBanner = () => {
-    const storageKey = 'pf_gdpr_accepted_' + new Date().toDateString();
-    const choice = sessionStorage.getItem(storageKey);
     const acceptBtn = document.querySelector('[data-testid="button-accept-cookies"]');
     const rejectBtn = document.querySelector('[data-testid="button-reject-cookies"]');
     const banner = acceptBtn?.closest('.fixed.bottom-0.left-0.right-0.z-50');
-
-    if (!banner) return;
-    if (choice) {
-      banner.style.display = 'none';
-    }
-
-    const saveChoice = (value) => {
-      sessionStorage.setItem(storageKey, value);
-      localStorage.setItem('pf_cookie_consent', value);
-      banner.style.display = 'none';
+    const loadAnalytics = () => {
+      if (document.querySelector('[data-pf-analytics]')) return;
+      window.dataLayer = window.dataLayer || [];
+      window.dataLayer.push({ 'gtm.start': Date.now(), event: 'gtm.js' });
+      const script = document.createElement('script');
+      script.async = true; script.dataset.pfAnalytics = 'true';
+      script.src = 'https://www.googletagmanager.com/gtm.js?id=GTM-TL8TG8CW';
+      document.head.appendChild(script);
     };
-
+    const choice = storageGet('pf_cookie_consent');
+    if (choice === 'accepted') loadAnalytics();
+    if (!banner) return;
+    if (!choice) document.body.classList.add('pf-consent-open');
+    if (choice) banner.style.display = 'none';
+    const saveChoice = value => { storageSet('pf_cookie_consent', value); banner.style.display = 'none'; document.body.classList.remove('pf-consent-open'); if (value === 'accepted') loadAnalytics(); };
     acceptBtn?.addEventListener('click', () => saveChoice('accepted'));
     rejectBtn?.addEventListener('click', () => saveChoice('rejected'));
+    const settings = document.createElement('button');
+    settings.type = 'button'; settings.textContent = 'Cookie settings';
+    settings.addEventListener('click', () => { banner.style.display = ''; document.body.classList.add('pf-consent-open'); });
+    document.querySelector('footer')?.appendChild(settings);
   };
 
   const setupFaqAccordions = () => {
@@ -768,13 +794,16 @@
         if (currentScrollY > lastScrollY && !isHidden) {
           header.style.transform = 'translateY(-100%)';
           isHidden = true;
+          document.body.classList.add('pf-header-hidden');
         } else if (currentScrollY < lastScrollY && isHidden) {
           header.style.transform = 'translateY(0)';
           isHidden = false;
+          document.body.classList.remove('pf-header-hidden');
         }
       } else {
         header.style.transform = 'translateY(0)';
         isHidden = false;
+        document.body.classList.remove('pf-header-hidden');
       }
 
       lastScrollY = currentScrollY;
@@ -792,8 +821,8 @@
       form.addEventListener('submit', async (event) => {
         event.preventDefault();
 
-        if (!isConfigured(config.web3forms.accessKey)) {
-          setFormStatus(statusEl, 'error', 'Form is not configured yet. Add WEB3FORMS_ACCESS_KEY in assets/site-config.js.');
+        if (!isConfigured(config.web3forms.accessKey) && !isConfigured(crmApiBaseUrl)) {
+          setFormStatus(statusEl, 'error', 'Form is not configured yet.');
           return;
         }
 
@@ -820,21 +849,38 @@
           payload.ccemail = email;
         }
 
+        let crmPromise = Promise.resolve(null);
         try {
-          const response = await fetch(config.web3forms.endpoint, {
+          if (isConfigured(crmApiBaseUrl)) crmPromise = submitCRMIntake(payload);
+          const emailPromise = isConfigured(config.web3forms.accessKey) ? fetch(config.web3forms.endpoint, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               Accept: 'application/json'
             },
             body: JSON.stringify(payload)
-          });
-
-          const result = await response.json().catch(() => ({}));
-          if (!response.ok || result.success === false) {
-            throw new Error(result.message || 'Submission failed');
+          }) : Promise.resolve(null);
+          const [emailResult, crmResult] = await Promise.allSettled([emailPromise, crmPromise]);
+          let emailSent = false;
+          let emailResponse = {};
+          if (emailResult.status === 'fulfilled') {
+            emailResponse = emailResult.value ? await emailResult.value.json().catch(() => ({})) : {};
+            emailSent = Boolean(emailResult.value?.ok && emailResponse.success === true);
           }
-
+          const crmSaved = crmResult.status === 'fulfilled' && crmResult.value !== null;
+          if (!emailSent && !crmSaved) {
+            throw new Error('Request could not be sent or saved.');
+          }
+          if (!emailSent && crmSaved) {
+            setFormStatus(statusEl, 'error', 'Your request was saved in the CRM, but the email notification failed. Please call 07743 565339 if you need an immediate response.');
+            form.reset();
+            return;
+          }
+          if (crmResult.status === 'rejected') {
+            setFormStatus(statusEl, 'error', 'Your request reached our email, but did not sync to the CRM. Please call 07743 565339 to make sure it is logged.');
+            form.reset();
+            return;
+          }
           const emailLine = email
             ? ' A confirmation copy has been requested for ' + email + '.'
             : ' Add your email in the form to receive a confirmation copy.';
@@ -842,7 +888,7 @@
           setFormStatus(
             statusEl,
             'success',
-            'Thanks, your request was sent to ' + config.web3forms.businessEmail + '.' + emailLine
+            (crmSaved ? (emailSent ? 'Thanks, your request was emailed and added to the Prestige Flow CRM.' : 'Thanks, your request was added to the Prestige Flow CRM.') : 'Thanks, your request was sent to ' + config.web3forms.businessEmail + '.' + emailLine)
           );
           form.reset();
         } catch (error) {
@@ -865,6 +911,7 @@
     const mainCard = document.querySelector('[data-testid="button-next-step"]')
       ?.closest('.shadcn-card');
     if (!mainCard) return;
+    mainCard.classList.add('pf-booking');
 
     // ─── Shared helpers ────────────────────────────────────────────────────────
     const paymentLinks = config.stripe.paymentLinks || {};
@@ -885,7 +932,7 @@
     };
 
     const getPeriod = () => {
-      return getCurrentPeriod();
+      return selectedPeriod;
     };
 
     const SERVICE_TOKEN = { drainage: 'DRAIN', 'emergency-drainage': 'EMER', plumbing: 'PLUM', 'cctv-survey': 'CCTV' };
@@ -958,25 +1005,43 @@
       return productMapLoadPromise;
     };
 
+    const getPriceAmount = (sku, productMap) => {
+      if (liveRatesLoaded && liveRateAmounts) {
+        const match = /^(LON|REG)-(DRAIN|EMER|PLUM|CCTV)-(DAY|EVE|WKD|FIX)$/.exec(sku || '');
+        if (match) {
+          const [,area,service,period] = match;
+          const key = area === 'LON' ? 'london' : 'regional';
+          const ratePeriod = ({DAY:'daytime',EVE:'evening',WKD:'weekend',FIX:'fixed'})[period];
+          return Number(liveRateAmounts?.[key]?.[service]?.[ratePeriod]) || 0;
+        }
+      }
+      return Number(productMap?.[sku]?.amount_pence) || 0;
+    };
+
     const getPriceLabel = (sku, productMap) => {
+      const amountPence = getPriceAmount(sku, productMap);
+      if (amountPence > 0) {
+        const pounds = new Intl.NumberFormat('en-GB', { maximumFractionDigits: 2 }).format(amountPence / 100);
+        return sku.endsWith('-FIX') ? `£${pounds} + VAT (fixed)` : `£${pounds}/hr + VAT`;
+      }
       const entry = productMap?.[sku];
       if (!entry) return null;
-      const pounds = Math.round(entry.amount_pence / 100);
+      const pounds = new Intl.NumberFormat('en-GB', { maximumFractionDigits: 2 }).format(entry.amount_pence / 100);
       return sku.endsWith('-FIX') ? `£${pounds} + VAT (fixed)` : `£${pounds}/hr + VAT`;
     };
 
     const getDestination = (service, region, linkMap) => {
       const sku = buildSku(service, region);
-      if (sku && linkMap?.[sku]) return { url: linkMap[sku], sku };
-      const fallback = (service === 'default' ? '' : paymentLinks[service]) || paymentLinks.default || '';
-      return { url: fallback, sku };
+      if (sku && /^https:\/\/buy\.stripe\.com\/[A-Za-z0-9]+$/.test(linkMap?.[sku] || '')) return { url: linkMap[sku], sku };
+      return { url: '', sku }; // Never charge a generic or different service price.
     };
 
     // ─── Step state ────────────────────────────────────────────────────────────
     let currentStep = 1; // 1=area, 2=service, 3=details, 4=confirm
     let selectedRegion = getRegion();
     let selectedService = '';
-    let customerDetails = { name: '', phone: '', email: '', notes: '' };
+    let selectedPeriod = getCurrentPeriod();
+    let customerDetails = { name: '', phone: '', email: '', address: '', postcode: '', date: '', time: '', notes: '' };
 
     // ─── Step indicator ────────────────────────────────────────────────────────
     // Find the step dots wrapper — it contains exactly the step circles
@@ -986,6 +1051,7 @@
 
     const renderStepIndicator = () => {
       if (!stepContainer) return;
+      requestAnimationFrame(() => { const heading = mainCard.querySelector('.text-2xl'); if (heading) { heading.setAttribute('tabindex', '-1'); heading.focus({ preventScroll: true }); mainCard.scrollIntoView({ block: 'start', behavior: 'instant' }); } });
       const gold = '#d4af37';
       const navy = '#1a2842';
       const dots = STEP_LABELS.map((label, i) => {
@@ -1095,7 +1161,7 @@
           </div>
           <div class="text-right flex-shrink-0">
             <p class="font-semibold text-primary" data-price-label>${escapeHtml(priceLabel)}</p>
-            <p class="text-xs text-muted-foreground">${escapeHtml(PERIOD_LABEL[period])}</p>
+            <p class="text-xs text-muted-foreground">${svc === 'cctv-survey' ? 'All days' : escapeHtml(PERIOD_LABEL[period])}</p>
           </div>
         </label>`;
       }).join('');
@@ -1108,10 +1174,25 @@
         'Select Your Service',
         `Prices shown for ${regionLabel} · ${PERIOD_LABEL[period]}`,
         iconWrench,
-        `<div role="radiogroup" class="grid gap-3">${serviceCards}</div><div class="mt-4 pf-booking-note" aria-live="polite"></div>`,
+        `<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4"><div class="flex flex-col gap-1.5"><label for="pf-visit-date" class="text-sm font-medium">Requested visit date</label><input id="pf-visit-date" type="date" value="${escapeHtml(customerDetails.date)}" required class="w-full rounded-md border p-2"/></div><div class="flex flex-col gap-1.5"><label for="pf-visit-time" class="text-sm font-medium">Preferred arrival time (UK time)</label><input id="pf-visit-time" type="time" value="${escapeHtml(customerDetails.time)}" required class="w-full rounded-md border p-2"/></div></div><p class="text-sm mb-4">The rate updates from your requested date and time: weekdays 8am–6pm, weekday evenings 6pm–8am, or weekends. We will confirm availability.</p><div role="radiogroup" aria-label="Service" class="grid gap-3">${serviceCards}</div><div class="mt-4 pf-booking-note" aria-live="polite"></div>`,
         footer
       );
 
+      const visitDateInput = mainCard.querySelector('#pf-visit-date');
+      const visitTimeInput = mainCard.querySelector('#pf-visit-time');
+      const todayUK = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+      visitDateInput.min = todayUK;
+      const updateVisitPeriod = () => {
+        customerDetails.date = visitDateInput.value;
+        customerDetails.time = visitTimeInput.value;
+        const appointmentPeriod = getAppointmentPeriod(customerDetails.date, customerDetails.time);
+        if (appointmentPeriod && appointmentPeriod !== selectedPeriod) {
+          selectedPeriod = appointmentPeriod;
+          renderStep2(productMap);
+        }
+      };
+      visitDateInput.addEventListener('change', updateVisitPeriod);
+      visitTimeInput.addEventListener('change', updateVisitPeriod);
       const note = mainCard.querySelector('.pf-booking-note');
       const nextBtn2 = mainCard.querySelector('[data-testid="button-step2-next"]');
 
@@ -1158,6 +1239,13 @@
       });
 
       nextBtn2.addEventListener('click', () => {
+        customerDetails.date = visitDateInput.value;
+        customerDetails.time = visitTimeInput.value;
+        if (!customerDetails.date) { note.textContent = 'Please choose your requested visit date.'; visitDateInput.focus(); return; }
+        if (!customerDetails.time) { note.textContent = 'Please choose your preferred arrival time in UK time.'; visitTimeInput.focus(); return; }
+        const appointmentPeriod = getAppointmentPeriod(customerDetails.date, customerDetails.time);
+        if (!appointmentPeriod) { note.textContent = 'Please choose a valid visit date and time.'; return; }
+        if (appointmentPeriod !== selectedPeriod) { selectedPeriod = appointmentPeriod; renderStep2(productMap); return; }
         if (!selectedService) { note.textContent = 'Please select a service to continue.'; return; }
         currentStep = 3;
         renderStepIndicator();
@@ -1177,13 +1265,15 @@
         <div class="grid gap-4">
           ${field('pf-name', 'Full Name', 'text', true, 'e.g. John Smith', customerDetails.name)}
           ${field('pf-phone', 'Phone Number', 'tel', true, 'e.g. 07700 900000', customerDetails.phone)}
-          ${field('pf-email', 'Email Address', 'email', false, 'e.g. john@example.com (optional)', customerDetails.email)}
+          ${field('pf-email', 'Email Address', 'email', true, 'e.g. john@example.com', customerDetails.email)}
+          ${field('pf-address', 'Service Address', 'text', true, 'House number and street', customerDetails.address)}
+          ${field('pf-postcode', 'Service Postcode', 'text', true, 'e.g. UB4 0AY', customerDetails.postcode)}
           <div class="flex flex-col gap-1.5">
             <label for="pf-notes" class="text-sm font-medium">Additional Notes <span class="text-muted-foreground text-xs">(optional)</span></label>
             <textarea id="pf-notes" name="pf-notes" class="${inputClass} resize-none" rows="3" placeholder="Describe the issue briefly or add access notes…">${escapeHtml(customerDetails.notes)}</textarea>
           </div>
         </div>
-        <p class="text-xs text-muted-foreground mt-3">Your details are used only to prepare your booking summary. They are not stored or shared before payment.</p>
+        <p class="text-xs text-muted-foreground mt-3">When you continue from the summary, we send these details to Prestige Flow to arrange your visit. Read our <a href="/privacy/">privacy notice</a>. An appointment is confirmed only when our team contacts you.</p>
         <div class="mt-3 pf-booking-note" aria-live="polite"></div>`;
 
       const footer = `
@@ -1192,7 +1282,13 @@
 
       mainCard.innerHTML = cardShell('Your Booking Details', 'We\'ll show you a full summary before any payment is taken', iconUser, bodyHtml, footer);
 
+      const saveDetails = () => {
+        for (const key of ['name', 'phone', 'email', 'address', 'postcode', 'notes']) {
+          customerDetails[key] = mainCard.querySelector('#pf-' + key)?.value.trim() || '';
+        }
+      };
       mainCard.querySelector('[data-testid="button-step3-back"]').addEventListener('click', () => {
+        saveDetails();
         currentStep = 2;
         renderStepIndicator();
         loadProductMap().then(renderStep2);
@@ -1208,7 +1304,12 @@
         if (!name)  { note.textContent = 'Please enter your name.';         mainCard.querySelector('#pf-name')?.focus();  return; }
         if (!phone) { note.textContent = 'Please enter your phone number.'; mainCard.querySelector('#pf-phone')?.focus(); return; }
 
-        customerDetails = { name, phone, email, notes };
+        saveDetails();
+        for (const input of mainCard.querySelectorAll('input')) { if (!input.reportValidity()) return; }
+        if (!/^[+\d\s().-]{7,20}$/.test(phone) || phone.replace(/\D/g, '').length < 10) { note.textContent = 'Please enter a valid phone number.'; return; }
+        if (!/^(GIR 0AA|[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2})$/i.test(customerDetails.postcode)) { note.textContent = 'Please enter a valid UK postcode.'; return; }
+        const appointmentPeriod = getAppointmentPeriod(customerDetails.date, customerDetails.time);
+        if (!appointmentPeriod || (selectedService !== 'cctv-survey' && appointmentPeriod !== selectedPeriod)) { note.textContent = 'The selected rate does not match your requested appointment time. Go back and check the visit date and UK time.'; return; }
         currentStep = 4;
         renderStepIndicator();
         Promise.all([loadProductMap(), loadPaymentLinks()]).then(([pm, links]) => renderStep4(pm, links));
@@ -1222,7 +1323,17 @@
       const priceLabel    = getPriceLabel(sku, productMap);
       const { url: destination } = getDestination(selectedService, selectedRegion, linkMap);
       const isFixed       = sku.endsWith('-FIX');
+      const product = productMap[sku] || {};
+      const firstHourTotalPence = Math.round(getPriceAmount(sku, productMap) * 1.2);
+      const depositPence = Math.round(firstHourTotalPence / 10);
+      // Existing Stripe links charge the full listed rate. Enable a link only if
+      // its mapping explicitly identifies this exact 10% deposit amount.
+      const dynamicCrmCheckout = isConfigured(crmApiBaseUrl) && liveCheckoutEnabled;
+      const checkoutReady = dynamicCrmCheckout || (product.checkout_ready === true &&
+        product.checkout_type === 'deposit' &&
+        product.checkout_amount_pence === depositPence);
       const priceDisplay  = priceLabel || 'Price on request';
+      const money = pence => '£' + (pence / 100).toFixed(2);
 
       const row = (label, value, highlight = false) =>
         `<div class="flex justify-between items-center py-2.5 border-b last:border-0">
@@ -1234,33 +1345,45 @@
         <div class="rounded-lg border bg-muted/30 p-4 mb-4">
           ${row('Area', regionLabel)}
           ${row('Service', SERVICE_LABEL[selectedService] || selectedService)}
-          ${row('Rate Period', PERIOD_LABEL[period])}
-          ${row('Rate', priceDisplay, true)}
-          ${isFixed ? '' : row('Billed as', '1 hour minimum at point of payment')}
+          ${row('Rate Period', isFixed ? 'Fixed price, all days' : PERIOD_LABEL[period])}
+          ${row('Requested Date and Time (UK)', customerDetails.date + ' at ' + customerDetails.time)}
+          ${row('Service Address', customerDetails.address + ', ' + customerDetails.postcode)}
+          ${row('Rate before VAT', priceDisplay, true)}
+          ${row(isFixed ? 'Fixed survey total including VAT' : 'First hour total including 20% VAT', money(firstHourTotalPence), true)}
+          ${row(isFixed ? '10% booking deposit on fixed survey' : '10% booking deposit on first hour', money(depositPence))}
+          ${row('Remaining balance', 'Due on site after the work')}
+          ${isFixed ? '' : row('Additional time or work', 'Only with your agreement; balance due on site')}
           ${customerDetails.name  ? row('Your Name', customerDetails.name)   : ''}
           ${customerDetails.phone ? row('Phone',     customerDetails.phone)   : ''}
           ${customerDetails.email ? row('Email',     customerDetails.email)   : ''}
         </div>
         ${customerDetails.notes ? `<div class="rounded-lg border bg-muted/30 p-3 mb-4"><p class="text-xs text-muted-foreground font-medium mb-1">Your notes:</p><p class="text-sm">${escapeHtml(customerDetails.notes)}</p></div>` : ''}
         <div class="rounded-lg border border-[#d4af37]/30 bg-[rgba(212,175,55,0.06)] p-3 text-sm">
-          <p class="font-medium mb-1">💳 Secure Stripe Checkout</p>
-          <p class="text-muted-foreground text-xs">You will be redirected to Stripe to pay for the first hour of your booking. Your card details are handled entirely by Stripe — we never see them.</p>
+          <p class="font-medium mb-1">${checkoutReady ? '💳 Secure Stripe deposit checkout' : 'Booking request — no payment now'}</p>
+          <p class="text-muted-foreground text-xs">${checkoutReady ? `Stripe will collect only the ${money(depositPence)} 10% deposit shown above. The remaining balance and any additional agreed work are payable on site.` : `The deposit shown is 10% of the first hour${isFixed ? ' fixed survey fee' : ''}, including VAT. No payment is taken with this request; after confirming availability, we will arrange the deposit. The remaining balance is due on site after the work.`}${checkoutReady ? ' Your card details are handled entirely by Stripe — we never see them.' : ''}</p>
         </div>
         <div class="mt-3 pf-booking-note" aria-live="polite"></div>`;
 
-      const payBtnText = priceLabel
+      const payBtnText = !checkoutReady
+        ? `Send Booking Request${iconArrow}`
+        : dynamicCrmCheckout
+        ? `Pay 10% first-hour deposit${iconArrow}`
+        : priceLabel
         ? `Pay ${priceLabel.replace(' + VAT', '')} + VAT via Stripe${iconArrow}`
         : `Proceed to Stripe Checkout${iconArrow}`;
 
       const footer = `
         ${btn(iconBack + 'Back', 'border border-[var(--button-outline)]', 'button-step4-back')}
-        ${btn(payBtnText, 'bg-primary text-primary-foreground border border-primary-border text-base font-semibold', 'button-step4-pay', isConfigured(destination) ? '' : 'disabled')}`;
+        ${btn(payBtnText, 'bg-primary text-primary-foreground border border-primary-border text-base font-semibold', 'button-step4-pay', (dynamicCrmCheckout ? isConfigured(crmApiBaseUrl) : (checkoutReady ? isConfigured(destination) : (isConfigured(config.web3forms.accessKey) || isConfigured(crmApiBaseUrl)))) ? '' : 'disabled')}`;
 
-      mainCard.innerHTML = cardShell('Confirm & Pay', 'Review your booking — then continue to secure Stripe checkout', iconCheck, bodyHtml, footer);
+      mainCard.innerHTML = cardShell(checkoutReady ? 'Confirm & Pay' : 'Request Booking', checkoutReady ? 'Review your booking — then continue to secure Stripe checkout' : 'Review your details and ask us to confirm an appointment', iconCheck, bodyHtml, footer);
 
-      if (!isConfigured(destination)) {
+      if (!isConfigured(destination) && !checkoutReady) {
         const note = mainCard.querySelector('.pf-booking-note');
-        if (note) note.textContent = 'Payment link not configured. Please call 07743 565339 to book.';
+        if (note) note.textContent = 'No 10% deposit checkout is connected yet. You can send this booking request; we will confirm availability and arrange the deposit.';
+      } else if (!checkoutReady) {
+        const note = mainCard.querySelector('.pf-booking-note');
+        if (note) note.textContent = 'No 10% deposit checkout is connected yet. You can send this request now; our team will confirm availability and arrange the deposit. The remaining balance is due on site.';
       }
 
       mainCard.querySelector('[data-testid="button-step4-back"]').addEventListener('click', () => {
@@ -1274,7 +1397,53 @@
         const note   = mainCard.querySelector('.pf-booking-note');
         payBtn.disabled = true;
         if (note) note.textContent = 'Preparing secure Stripe checkout redirect…';
-        window.location.href = destination;
+        try {
+          if (!isConfigured(config.web3forms.accessKey) && !isConfigured(crmApiBaseUrl)) throw new Error('Booking service unavailable');
+          const reference = 'PF-' + crypto.randomUUID();
+          const bookingPayload = { ...customerDetails, form_type: 'booking',
+            service: SERVICE_LABEL[selectedService], region: selectedRegion, rate_period: period,
+            sku, reference, first_hour_including_vat: money(firstHourTotalPence), deposit_amount: money(depositPence), deposit_percentage: 10,
+            remaining_balance_due: 'On site after the work; any additional time or work must be agreed with the customer.',
+            source: window.location.origin + '/booking/' };
+          const tasks = [];
+          if (isConfigured(config.web3forms.accessKey)) tasks.push(withTimeout(fetch(config.web3forms.endpoint, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify({ access_key: config.web3forms.accessKey, subject: 'Prestige Flow booking request ' + reference,
+              from_name: config.web3forms.fromName, botcheck: '', ...customerDetails, replyto: customerDetails.email,
+              service: SERVICE_LABEL[selectedService], region: regionLabel, rate_period: period, rate_period_label: PERIOD_LABEL[period],
+              sku, reference, first_hour_including_vat: money(firstHourTotalPence), deposit_amount: money(depositPence), deposit_percentage: 10,
+              remaining_balance_due: 'On site after the work; any additional time or work must be agreed with the customer.',
+              payment_status: `No payment taken in this booking request. Arrange the 10% first-hour deposit (${money(depositPence)}) after confirming availability; remaining balance due on site.` })
+          }).then(async response => ({ kind: 'email', ok: response.ok && (await response.json().catch(() => ({}))).success === true })), 15000));
+          if (isConfigured(crmApiBaseUrl)) tasks.push(submitCRMIntake(bookingPayload).then(result => ({ kind: 'crm', ok: true, paymentUrl: result?.checkoutUrl || '' })));
+          const outcomes = await Promise.allSettled(tasks);
+          const emailResult = outcomes.find(result => result.status === 'fulfilled' && result.value.kind === 'email');
+          const crmResult = outcomes.find(result => result.status === 'fulfilled' && result.value.kind === 'crm');
+          const emailSent = emailResult?.status === 'fulfilled' && emailResult.value.ok;
+          const crmSaved = Boolean(crmResult);
+          if (!emailSent && !crmSaved) throw new Error('Booking request could not be emailed or saved.');
+          if (isConfigured(crmApiBaseUrl) && !crmSaved) {
+            mainCard.innerHTML = cardShell('Booking Request Needs Follow-up', 'The email request was sent, but this booking did not sync to the CRM. Please call us to confirm it is logged.', iconCheck, `<p class="text-sm">No payment was taken. Call <a href="tel:+447743565339">07743 565339</a> and give us your preferred visit time: ${escapeHtml(customerDetails.date)} at ${escapeHtml(customerDetails.time)} UK time.</p>`, '');
+            return;
+          }
+          const crmOutcome = outcomes.find(result => result.status === 'fulfilled' && result.value.kind === 'crm');
+          const dynamicPaymentUrl = crmOutcome?.status === 'fulfilled' ? crmOutcome.value.paymentUrl : '';
+          if (dynamicPaymentUrl) {
+            window.location.assign(dynamicPaymentUrl);
+            return;
+          }
+          if (!checkoutReady || dynamicCrmCheckout) {
+            mainCard.innerHTML = cardShell('Request Received', `Thank you — your booking request was ${crmSaved ? 'saved in our CRM and ' : ''}sent to Prestige Flow. We will confirm availability and arrange your 10% first-hour deposit; the remaining balance is due on site.`, iconCheck, `<p class="text-sm">No payment has been taken yet. For urgent help, call <a href="tel:+447743565339">07743 565339</a>.</p>`, '');
+            return;
+          }
+          const checkout = new URL(destination);
+          checkout.searchParams.set('client_reference_id', reference);
+          checkout.searchParams.set('prefilled_email', customerDetails.email);
+          window.location.assign(checkout.href);
+        } catch (_) {
+          note.textContent = 'We could not send your booking details. No payment has been taken. Please try again or call 07743 565339.';
+          payBtn.disabled = false;
+        }
       });
     };
 
@@ -1403,57 +1572,6 @@
     }
   };
 
-  const setupHomepageBookingShortcut = () => {
-    const path = window.location.pathname.replace(/\/$/, '') || '/';
-    if (path !== '/') return;
-    if (document.querySelector('[data-pf-home-booking-shortcut]')) return;
-
-    const host = document.querySelector('main#main-content');
-    if (!host) return;
-
-    const section = document.createElement('section');
-    section.setAttribute('data-pf-home-booking-shortcut', 'true');
-    section.style.background = 'linear-gradient(90deg, #d4af37 0%, #c49d2f 100%)';
-    section.style.color = '#1a2842';
-    section.style.borderBottom = '1px solid rgba(26, 40, 66, 0.2)';
-
-    const container = document.createElement('div');
-    container.className = 'container mx-auto px-4';
-    container.style.display = 'flex';
-    container.style.flexWrap = 'wrap';
-    container.style.gap = '12px';
-    container.style.justifyContent = 'space-between';
-    container.style.alignItems = 'center';
-    container.style.paddingTop = '12px';
-    container.style.paddingBottom = '12px';
-
-    const copy = document.createElement('p');
-    copy.style.margin = '0';
-    copy.style.fontWeight = '700';
-    copy.style.fontSize = '0.95rem';
-    copy.textContent = 'Need a drainage or plumbing visit? Call now or book online in under 60 seconds.';
-
-    const cta = document.createElement('a');
-    cta.href = '/booking';
-    cta.textContent = 'Book Now';
-    cta.setAttribute('aria-label', 'Book now in under 60 seconds');
-    cta.style.display = 'inline-flex';
-    cta.style.alignItems = 'center';
-    cta.style.justifyContent = 'center';
-    cta.style.padding = '8px 14px';
-    cta.style.borderRadius = '8px';
-    cta.style.fontWeight = '700';
-    cta.style.textDecoration = 'none';
-    cta.style.backgroundColor = '#1a2842';
-    cta.style.color = '#fff';
-    cta.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.18)';
-
-    container.appendChild(copy);
-    container.appendChild(cta);
-    section.appendChild(container);
-    host.insertBefore(section, host.firstChild);
-  };
-
   onReady(() => {
     document.body.style.pointerEvents = '';
     setupCookieBanner();
@@ -1467,6 +1585,7 @@
     setupWeb3Forms();
     setupBookingPaymentFallback();
     setupGoogleReviewSummary();
-    setupHomepageBookingShortcut();
+    const instagramFallback = document.querySelector("[data-pf-instagram-fallback]");
+    if (instagramFallback) window.setTimeout(() => { instagramFallback.hidden = false; }, 12000);
   });
 })();

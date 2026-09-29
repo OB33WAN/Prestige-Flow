@@ -5,14 +5,17 @@
   "scripts": {
     "export": "node scripts/export-site.mjs",
     "vanilla": "npm run export && node scripts/make-vanilla.mjs",
-    "pages:build": "npm run vanilla && node scripts/publish-pages.mjs",
+    "pages:build": "npm run build",
     "seo:refresh": "node scripts/generate-sitemap.mjs",
     "analytics:inject": "node scripts/inject-analytics.mjs",
     "gbp:inject": "node scripts/inject-gbp.mjs",
-    "links:audit": "node scripts/audit-links.mjs docs",
+    "links:audit": "node scripts/audit-links.mjs .",
     "preview": "node scripts/preview.mjs",
     "stripe:import": "node scripts/import-stripe-products.mjs --file data/stripe-products.csv",
-    "stripe:import:dry": "node scripts/import-stripe-products.mjs --file data/stripe-products.csv --dry-run"
+    "stripe:import:dry": "node scripts/import-stripe-products.mjs --file data/stripe-products.csv --dry-run",
+    "build": "node scripts/generate-sitemap.mjs && node scripts/build.mjs",
+    "check": "node scripts/check-site.mjs && npm run links:audit",
+    "test:booking": "node scripts/test-booking.mjs"
   },
   "devDependencies": {
     "cheerio": "^1.0.0",
