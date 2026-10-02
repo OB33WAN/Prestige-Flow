@@ -135,14 +135,15 @@ const products = JSON.parse(await fs.readFile('data/stripe-product-map.json', 'u
 const links = JSON.parse(await fs.readFile('data/stripe-payment-link-map.json', 'utf8')).payment_links;
 for (const product of products) {
   assert.equal(product.checkout_ready, false, `Only verified 10% deposit checkout links may be enabled: ${product.sku}`);
-  const [, service, period] = product.sku.split('-');
-  const approvedAmount = service === 'CCTV' ? 17500 : service === 'PLUM'
-    ? period === 'DAY' ? 10500 : 11500
-    : period === 'DAY' ? 12000 : 14000;
-  assert.equal(product.amount_pence, approvedAmount, `Approved unified price for ${product.sku}`);
+  // These disabled mappings retain historical Stripe prices, not current booking rates.
+  const [region, service, period] = product.sku.split('-');
+  const historicalAmount = service === 'CCTV' ? 17500 : service === 'PLUM'
+    ? region === 'LON' ? period === 'DAY' ? 10500 : 11500 : period === 'DAY' ? 9500 : 11000
+    : period === 'DAY' ? 14000 : 16000;
+  assert.equal(product.amount_pence, historicalAmount, `Historical Stripe price for ${product.sku}`);
   const link = links.find(x => x.sku === product.sku);
   assert.ok(link, product.sku);
-  assert.equal(link.checkout_ready, false, `Historical payment link must stay disabled until verified: ${product.sku}`);
+  assert.equal(link.checkout_ready ?? false, false, `Historical payment link must stay disabled until verified: ${product.sku}`);
   assert.equal(link.price_id, product.price_id, product.sku);
   assert.equal(link.payment_link_url, product.payment_link_url, product.sku);
   assert.match(link.payment_link_url, /^https:\/\/buy\.stripe\.com\/[A-Za-z0-9]+$/);

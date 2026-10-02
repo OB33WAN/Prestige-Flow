@@ -15,6 +15,7 @@
     "stripe:import:dry": "node scripts/import-stripe-products.mjs --file data/stripe-products.csv --dry-run",
     "cms:build": "node scripts/build-cms-pages.mjs",
     "test:cms": "node scripts/test-cms-pages.mjs",
+    "test:build": "node scripts/test-build.mjs",
     "build": "node scripts/build-cms-pages.mjs && node scripts/generate-sitemap.mjs && node scripts/generate-nginx-redirects.mjs && node scripts/build.mjs",
     "check": "node scripts/check-site.mjs && npm run links:audit",
     "test:booking": "npm run build && node deploy/easypanel/configure-site-api.mjs && node scripts/test-static-stripe-booking.mjs",
