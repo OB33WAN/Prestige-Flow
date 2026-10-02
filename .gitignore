@@ -1,3 +1,5 @@
 node_modules/
 dist/
 .public-site/
+deploy/easypanel/.env
+.cms-generated-pages/

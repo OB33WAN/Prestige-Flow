@@ -1,0 +1,11 @@
+name = "prestige-flow-cms-auth"
+main = "src/index.ts"
+compatibility_date = "2026-10-02"
+workers_dev = false
+
+[[routes]]
+pattern = "cms-auth.prestigeflow.co.uk"
+custom_domain = true
+
+[vars]
+GITHUB_REPO_PRIVATE = "0"

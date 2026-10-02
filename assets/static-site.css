@@ -102,8 +102,8 @@ header {
 .pf-booking .border-b span { overflow-wrap:anywhere; }
 @media (max-width:480px) { .pf-booking .p-6 { padding:20px; } .pf-booking > :last-child button { flex:1; } }
 
-.pf-native-radio { accent-color:#9b7b13; margin-bottom:8px; }
-.pf-native-radio:checked + label { border-color:#9b7b13; background:#d4af371a; }
+.pf-native-radio { accent-color:#d4af37; margin-bottom:8px; }
+.pf-native-radio:checked + label { border-color:#d4af37; background:#d4af371a; }
 
 @media (max-width: 767px) {
   /* The header and hero already provide direct contact links on phones. */
@@ -130,10 +130,268 @@ header {
   .fixed.bottom-0.left-0.right-0.z-50 .flex.items-center.gap-3 .flex-1 > .flex { font-size: 0.8125rem; line-height: 1.25; }
 }
 
+/* Brand and conversion controls shared by every static page. */
+.bg-primary,
+a.bg-primary,
+button.bg-primary {
+  background-color: #d4af37 !important;
+  border-color: #d4af37 !important;
+  color: #1a2842 !important;
+}
+.bg-primary:hover,
+a.bg-primary:hover,
+button.bg-primary:hover { background-color: #c49d2f !important; }
+.text-primary { color: #d4af37 !important; }
+.border-primary { border-color: #d4af37 !important; }
+
+.pf-call-button,
+a[data-testid="button-header-call"],
+a[data-testid="button-mobile-header-call"],
+a[data-testid="button-floating-call"] {
+  background: #c62828 !important;
+  border-color: #c62828 !important;
+  color: #fff !important;
+}
+.pf-call-button:hover,
+a[data-testid="button-header-call"]:hover,
+a[data-testid="button-mobile-header-call"]:hover,
+a[data-testid="button-floating-call"]:hover {
+  background: #a91f1f !important;
+  border-color: #a91f1f !important;
+  color: #fff !important;
+}
+
+a[href^="https://wa.me/"] {
+  background-color: #25d366 !important;
+  border-color: #25d366 !important;
+  color: #fff !important;
+}
+a[href^="https://wa.me/"]:hover { background-color: #20c05d !important; border-color: #20c05d !important; color: #fff !important; }
+a[href^="https://wa.me/"] .pf-whatsapp-mark { width: 1.25rem; height: 1.25rem; flex: 0 0 auto; }
+a[data-testid="link-footer-whatsapp"] { border-radius: 999px; padding: .65rem; }
+a[data-testid="link-footer-whatsapp"] { background-color: transparent !important; border-color: transparent !important; color: #fff !important; }
+a[data-testid="link-footer-whatsapp"]:hover { background-color: rgba(255, 255, 255, .08) !important; }
+a[data-testid="link-footer-whatsapp"] .pf-whatsapp-mark-footer { width: 1.5rem; height: 1.5rem; }
+
+.pf-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: .75rem;
+  width: min(100%, 60rem);
+  margin: 1.5rem auto 0;
+}
+.pf-hero-actions > a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .55rem;
+  min-width: 11rem;
+  min-height: 3rem;
+  max-width: 100%;
+  padding: .75rem 1.1rem;
+  border: 1px solid transparent;
+  border-radius: .55rem;
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.pf-hero-actions > .pf-cta-gold {
+  background: #d4af37;
+  border-color: #d4af37;
+  color: #1a2842;
+}
+.pf-hero-actions > .pf-cta-red {
+  background: #c62828;
+  border-color: #c62828;
+  color: #fff;
+}
+.pf-hero-actions > .pf-cta-red:hover {
+  background: #a91f1f;
+  border-color: #a91f1f;
+  color: #fff;
+}
+.pf-hero-actions > .pf-cta-outline {
+  border-color: #d4af37;
+  background: rgba(26, 40, 66, .78);
+  color: #f2d675;
+}
+.pf-home-particles {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.pf-industry-services { scroll-margin-top: 6rem; }
+.pf-industry-services a { overflow-wrap: anywhere; }
+.pf-industry-services .pf-industry-service-card { min-width: 0; height: 100%; }
+.pf-button-row { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; }
+.pf-button-row > a { min-width: 0; max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+
+.pf-home-rates-scroll { max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; }
+.pf-home-rates-table { width: 100%; min-width: 680px; border-collapse: collapse; text-align: left; }
+.pf-home-rates-table th,
+.pf-home-rates-table td { padding: .8rem .7rem; vertical-align: top; }
+.pf-home-rates-table thead th { border-bottom: 1px solid #d4af37; color: #1a2842; }
+.pf-home-rates-table tbody tr + tr th,
+.pf-home-rates-table tbody tr + tr td { border-top: 1px solid #d7d7d7; }
+.pf-home-rates-table tbody th { font-weight: 700; }
+.pf-rate-schedule > span { display: block; margin-top: .25rem; }
+.pf-rates-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; margin-top: 1.25rem; }
+.pf-rates-actions > a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.9rem;
+  max-width: 100%;
+  padding: .7rem 1.15rem;
+  border: 2px solid #d4af37;
+  border-radius: .55rem;
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+  transition: background-color .18s ease, color .18s ease, transform .18s ease;
+}
+.pf-rates-actions > .pf-rate-book-button { background: #d4af37; color: #1a2842; }
+.pf-rates-actions > .pf-rate-quote-button { background: transparent; color: #1a2842; }
+.pf-rates-actions > .pf-rate-book-button:hover { background: #c49d2f; border-color: #c49d2f; }
+.pf-rates-actions > .pf-rate-quote-button:hover { background: #d4af37; }
+.pf-rates-actions > a:focus-visible { outline: 3px solid #1a2842; outline-offset: 3px; }
+
+@media (max-width: 600px) {
+  .pf-rates-actions { display: grid; grid-template-columns: 1fr; }
+  .pf-rates-actions > a { width: 100%; }
+}
+
+@media (max-width: 600px) {
+  .pf-hero-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .55rem; }
+  .pf-hero-actions > a { min-width: 0; width: 100%; padding: .7rem .5rem; font-size: .9rem; }
+  .pf-hero-actions > a:first-child { grid-column: 1 / -1; }
+  .pf-button-row > a { flex: 1 1 10rem; }
+
+  /* Keep the full first-screen contact choices clear of the cookie notice. */
+  main > div.min-h-screen > section:first-child h1 {
+    font-size: clamp(1.6rem, 6.7vw, 1.9rem) !important;
+    line-height: 1.03 !important;
+  }
+  main > div.min-h-screen > section:first-child > div.relative.z-10 p {
+    font-size: .94rem !important;
+    line-height: 1.3 !important;
+    margin-bottom: .4rem !important;
+  }
+  main > div.min-h-screen > section:first-child .pf-hero-actions { margin-top: .45rem; }
+}
+
 body.pf-consent-open [data-testid="floating-contact-buttons"] { display: none !important; }
 
 /* Keep the full desktop navigation out of the tablet-width header squeeze. */
 @media (min-width: 768px) and (max-width: 1099px) {
   header .relative.flex.items-center > .hidden.md\:flex { display: none !important; }
   header .relative.flex.items-center > .md\:hidden { display: flex !important; }
+}
+/* Keep the first phone action and core message visible on small screens. */
+@media (max-width: 767px) {
+  main > div.min-h-screen > section:first-child {
+    min-height: 68vh;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+  main > div.min-h-screen > section:first-child > div.relative.z-10 {
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+  }
+  main > div.min-h-screen > section:first-child h1 {
+    font-size: clamp(1.8rem, 8vw, 2.25rem) !important;
+    line-height: 1.08 !important;
+    margin-bottom: 0.5rem !important;
+  }
+  main > div.min-h-screen > section:first-child > div.relative.z-10 p {
+    margin-bottom: 0.65rem !important;
+  }
+  main > div.min-h-screen > section:first-child [data-testid="button-call-hero"] {
+    flex-basis: 100%;
+    max-width: 22rem;
+    min-height: 2.75rem;
+  }
+  main section[data-testid="emergency-drainage-hero"] h1 {
+    font-size: clamp(1.9rem, 8vw, 2.35rem) !important;
+    line-height: 1.08 !important;
+  }
+  main section[data-testid="emergency-drainage-hero"] > div.relative.z-10 > div.flex.items-center.gap-4.mb-6 {
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+  }
+  main [data-testid="emergency-call-hero"] {
+    display: flex;
+    width: 100%;
+    max-width: none;
+    margin-top: 0.75rem;
+  }
+}
+
+/* Homepage pricing cards styled to mirror the About page reference. */
+.pf-home-pricing-section {
+  padding: clamp(3.5rem, 7vw, 5.5rem) 0;
+  background: #fff;
+}
+.pf-home-pricing { max-width: 1320px; }
+.pf-home-pricing__intro { margin: 0 auto 2.75rem; max-width: 820px; text-align: center; }
+.pf-home-pricing__intro h2 {
+  margin: 0 0 .75rem;
+  color: #17243a;
+  font-size: clamp(2.25rem, 4vw, 3.25rem);
+  font-weight: 750;
+  line-height: 1.1;
+}
+.pf-home-pricing__intro > p { margin: 0 0 .75rem; color: #526c91; font-size: clamp(1.1rem, 2vw, 1.5rem); }
+.pf-home-pricing__region { color: #526c91; font-size: .95rem; }
+.pf-home-pricing__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.4rem; align-items: stretch; }
+.pf-home-pricing__card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: clamp(1.25rem, 2.4vw, 2rem);
+  border: 1px solid #e1e5eb;
+  border-radius: 1rem;
+  background: #fafafa;
+  box-shadow: 0 2px 5px rgb(23 36 58 / 5%);
+}
+.pf-home-pricing__card h3 { margin: 0 0 1rem; color: #17243a; font-size: clamp(1.25rem, 2vw, 1.65rem); font-weight: 650; line-height: 1.25; }
+.pf-home-pricing__rows { display: grid; gap: .2rem; margin: 0; }
+.pf-home-pricing__rows > div { display: flex; justify-content: space-between; align-items: baseline; gap: .8rem; padding: .55rem 0; }
+.pf-home-pricing__rows dt { color: #526c91; }
+.pf-home-pricing__rows dt span { display: block; margin-top: .12rem; font-size: .85em; }
+.pf-home-pricing__rows dd { flex: 0 0 auto; margin: 0; color: #17243a; font-size: 1.15rem; font-weight: 650; text-align: right; white-space: nowrap; }
+.pf-home-pricing__rows dd small { font-size: .82em; font-weight: 600; }
+.pf-home-pricing__card-note { margin: auto 0 0; padding-top: 1rem; border-top: 1px solid #d9dee6; color: #526c91; font-size: .9rem; line-height: 1.5; }
+.pf-home-pricing__notes { margin: 1.75rem auto 0; max-width: 1120px; color: #526c91; line-height: 1.65; }
+.pf-home-pricing__notes p { margin: .55rem 0; }
+.pf-home-pricing__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: .85rem; margin: 1.75rem 0 0; }
+.pf-home-pricing__actions a { min-width: 190px; text-align: center; }
+@media (max-width: 900px) { .pf-home-pricing__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .pf-home-pricing__card:last-child { grid-column: 1 / -1; } }
+@media (max-width: 620px) {
+  .pf-home-pricing-section { padding: 3rem 0; }
+  .pf-home-pricing__intro { margin-bottom: 1.75rem; }
+  .pf-home-pricing__grid { grid-template-columns: 1fr; gap: 1rem; }
+  .pf-home-pricing__card:last-child { grid-column: auto; }
+  .pf-home-pricing__rows dd { font-size: 1.05rem; }
+  .pf-home-pricing__actions { flex-direction: column; }
+  .pf-home-pricing__actions a { width: 100%; }
+}
+
+/* Keep the homepage pricing title in normal document flow. The sitewide `header`
+   rule is sticky, but this content header must stay above its pricing cards. */
+.pf-home-pricing__intro {
+  position: static !important;
+  top: auto !important;
+  background-color: transparent !important;
 }

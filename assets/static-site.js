@@ -17,6 +17,7 @@
     stripe: {
       publishableKey: '',
       secretKeyNotice: 'Do not place STRIPE_SECRET_KEY in static files. Use Stripe Payment Links or a secure backend.',
+      legacyPaymentLinksEnabled: false,
       paymentLinks: {
         default: '',
         drainage: '',
@@ -25,7 +26,8 @@
         'cctv-survey': ''
       }
     },
-    crm: { apiBaseUrl: '' }
+    crm: { apiBaseUrl: '' },
+    oldSitePayments: { apiBaseUrl: '' }
   };
 
   const mergeConfig = (base, incoming) => ({
@@ -51,11 +53,14 @@
         ...(incoming?.stripe?.paymentLinksBySku || {})
       }
     },
-    crm: { ...base.crm, ...(incoming?.crm || {}) }
+    crm: { ...base.crm, ...(incoming?.crm || {}) },
+    oldSitePayments: { ...base.oldSitePayments, ...(incoming?.oldSitePayments || {}) }
   });
 
   const config = mergeConfig(DEFAULT_CONFIG, window.PrestigeFlowConfig || {});
-  const crmApiBaseUrl = String(config.crm?.apiBaseUrl || window.location.origin).trim().replace(/\/+$/, '');
+  // The old site's payment service is separate from the new site and CRM.
+  const crmApiBaseUrl = String(config.crm?.apiBaseUrl || '').trim().replace(/\/+$/, '');
+  const oldSitePaymentsApiBaseUrl = String(config.oldSitePayments?.apiBaseUrl || '').trim().replace(/\/+$/, '');
 
   const onReady = (fn) => {
     if (document.readyState === 'loading') {
@@ -74,33 +79,37 @@
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 
-  // Version the auto-detected area state so old manually selected regions do
-  // not keep overriding location-based prices after the selector is removed.
-  const REGION_KEY = 'pf_region_v2';
-  const REGION_SOURCE_KEY = 'pf_region_source_v2';
+  // Public prices now use one unified London & South East Region rate set.
+  const REGION_KEY = 'pf_region_v3';
   const GEO_CACHE_KEY = 'pf_region_geo_cache_v2';
   const GEO_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
   const REGION_LABELS = {
-    london: 'London',
-    regional: 'Reading, Slough & SE'
+    london: 'London & South East Region',
+    regional: 'London & South East Region'
   };
   const REGION_RATES = {
     london: {
-      drainage: { daytime: '£140/hr', evening: '£160/hr', weekend: '£160/hr' },
+      drainage: { daytime: '£120/hr', evening: '£140/hr', weekend: '£140/hr' },
       plumbing: { daytime: '£105/hr', evening: '£115/hr', weekend: '£115/hr' },
       cctv: '£175 + VAT (fixed)'
     },
     regional: {
-      drainage: { daytime: '£140/hr', evening: '£160/hr', weekend: '£160/hr' },
-      plumbing: { daytime: '£95/hr', evening: '£110/hr', weekend: '£110/hr' },
+      drainage: { daytime: '£120/hr', evening: '£140/hr', weekend: '£140/hr' },
+      plumbing: { daytime: '£105/hr', evening: '£115/hr', weekend: '£115/hr' },
       cctv: '£175 + VAT (fixed)'
     }
+  };
+  const FALLBACK_RATE_AMOUNTS = {
+    DRAIN: { daytime: 12000, evening: 14000, weekend: 14000 },
+    EMER: { daytime: 12000, evening: 14000, weekend: 14000 },
+    PLUM: { daytime: 10500, evening: 11500, weekend: 11500 },
+    CCTV: { fixed: 17500 }
   };
   let liveRatesLoaded = false;
   let liveRateAmounts = null;
   let liveCheckoutEnabled = false;
   const loadLiveRates = async () => {
-    const base = crmApiBaseUrl;
+    const base = oldSitePaymentsApiBaseUrl;
     if (!base) return;
     try {
       const response = await withTimeout(fetch(`${base}/api/public/rates`, { mode: 'cors', credentials: 'omit', cache: 'no-store' }), 5000);
@@ -109,7 +118,7 @@
       liveRateAmounts = rates;
       liveCheckoutEnabled = checkoutEnabled === true;
       const moneyPerHour = pence => `£${(Number(pence) / 100).toFixed(Number(pence) % 100 ? 2 : 0)}/hr`;
-      for (const [key, code] of [['london','london'],['regional','regional']]) {
+      for (const [key, code] of [['london','regional'],['regional','regional']]) {
         REGION_RATES[key] = {
           drainage: Object.fromEntries(['daytime','evening','weekend'].map(period => [period,moneyPerHour(rates?.[code]?.DRAIN?.[period])])),
           plumbing: Object.fromEntries(['daytime','evening','weekend'].map(period => [period,moneyPerHour(rates?.[code]?.PLUM?.[period])])),
@@ -140,6 +149,17 @@
     }
   };
 
+  // Keep GA/GTM conversion data anonymous and respect the site's analytics consent choice.
+  const trackConversion = (eventName, details = {}) => {
+    if (storageGet('pf_cookie_consent') !== 'accepted') return;
+    window.dataLayer = window.dataLayer || [];
+    window.dataLayer.push({
+      event: eventName,
+      page_path: window.location.pathname,
+      ...details
+    });
+  };
+
   const storageSet = (key, value) => {
     try {
       window.localStorage.setItem(key, value);
@@ -151,19 +171,18 @@
   try {
     // Drop the now-retired manual override so it cannot mislabel automatic rates.
     window.localStorage.removeItem('pf_region');
-    window.localStorage.removeItem('pf_region_source');
     window.localStorage.removeItem('pf_region_geo_cache');
   } catch (_) { /* Ignore restricted storage. */ }
 
-  const normalizeRegion = (value) => value === 'regional' ? 'regional' : 'london';
+  const normalizeRegion = (_value) => 'regional';
 
   const getRegionLabel = (region) => REGION_LABELS[normalizeRegion(region)] || REGION_LABELS.london;
 
-  const getStoredRegion = () => normalizeRegion(storageGet(REGION_KEY));
+  const getStoredRegion = () => 'regional';
 
   const setStoredRegion = (region, source) => {
     storageSet(REGION_KEY, normalizeRegion(region));
-    if (source) storageSet(REGION_SOURCE_KEY, source);
+    storageSet(REGION_KEY, 'regional');
   };
 
   const getCurrentPeriod = () => {
@@ -222,6 +241,7 @@
       rate_period: payload.rate_period || '',
       sku: payload.sku || '',
       reference: payload.reference || '',
+      card_charge_consent: payload.card_charge_consent === true,
       source: payload.source || window.location.href,
       website: payload.website || ''
     };
@@ -234,6 +254,35 @@
     }), 15000);
     const result = await response.json().catch(() => ({}));
     if (!response.ok || result.accepted !== true) throw new Error(result.error || 'CRM could not save the enquiry.');
+    return result;
+  };
+
+  const submitOldSiteBooking = async (payload) => {
+    if (!isConfigured(oldSitePaymentsApiBaseUrl)) throw new Error('The old-site payment service is not connected.');
+    const url = new URL(oldSitePaymentsApiBaseUrl);
+    if (url.protocol !== 'https:' && !['localhost', '127.0.0.1'].includes(url.hostname)) throw new Error('The old-site payment connection must use HTTPS.');
+    const response = await withTimeout(fetch(new URL('/api/public/bookings', url.origin), {
+      method: 'POST', mode: 'cors', credentials: 'omit',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(payload)
+    }), 20000);
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || result.accepted !== true || !result.checkoutUrl) throw new Error(result.error || 'Secure checkout could not be started.');
+    return result;
+  };
+
+  const submitOldSiteEnquiry = async (payload) => {
+    if (!isConfigured(oldSitePaymentsApiBaseUrl)) throw new Error('The old-site email service is not connected.');
+    const url = new URL(oldSitePaymentsApiBaseUrl);
+    if (url.protocol !== 'https:' && !['localhost', '127.0.0.1'].includes(url.hostname)) throw new Error('The old-site email connection must use HTTPS.');
+    const { access_key, from_name, replyto, ccemail, ...fields } = payload;
+    const response = await withTimeout(fetch(new URL('/api/public/enquiries', url.origin), {
+      method: 'POST', mode: 'cors', credentials: 'omit',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ form_type: payload.form_type, fields, source: payload.source, website: payload.website || '' })
+    }), 20000);
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || result.accepted !== true) throw new Error(result.error || 'Your request could not be emailed.');
     return result;
   };
 
@@ -364,74 +413,14 @@
     }
   };
 
-  const swapVariant = (text, londonValue, regionalValue, region) => {
-    const target = region === 'regional' ? regionalValue : londonValue;
-    return text.split(londonValue).join(target).split(regionalValue).join(target);
-  };
-
-  const pricingOriginals = new WeakMap();
-  const updateServiceRoots = (region) => {
-    const main = document.querySelector('main');
-    if (!main || window.location.pathname.startsWith('/booking')) return;
-    walkTextNodes(main, node => {
-      if (node.parentElement.closest('[data-pricing-table]')) return;
-      if (!pricingOriginals.has(node)) pricingOriginals.set(node, node.nodeValue);
-      const original = pricingOriginals.get(node);
-      if (!/£\s*\d+(?:\.\d{1,2})?(?=\s*(?:\/|per\b|\+))/i.test(original)) return;
-
-      // Change only copy inside an unambiguous plumbing service card/section.
-      // Broad mixed-service copy and the all-area comparison table stay intact.
-      let service = '';
-      for (let el = node.parentElement; el && el !== main.parentElement; el = el.parentElement) {
-        const text = el.textContent || '';
-        if (text.length > 320) continue;
-        const plumbing = /plumb/i.test(text);
-        const drainage = /drain/i.test(text);
-        const cctv = /cctv/i.test(text);
-        if (Number(plumbing) + Number(drainage) + Number(cctv) === 1) {
-          service = plumbing ? 'plumbing' : drainage ? 'drainage' : 'cctv';
-          break;
-        }
-      }
-      // Dedicated plumbing landing pages can have large copy blocks whose
-      // closest useful heading is outside the small-card text scan above.
-      if (!service && /\/plumbing(?:\/|$)/i.test(window.location.pathname)) service = 'plumbing';
-      if (!service) return;
-      const rateSet = REGION_RATES[normalizeRegion(region)];
-      const periodText = original.toLowerCase();
-      const oldAmount = Number(original.match(/£\s*(\d+(?:\.\d{1,2})?)/)?.[1]);
-      const originalRates = REGION_RATES[normalizeRegion(region)];
-      const knownDayRate = service === 'plumbing' ? [95,105].includes(oldAmount) : service === 'cctv' ? false : oldAmount === 140;
-      const pricePeriod = /weekend|\bsat(?:urday)?\b|\bsun(?:day)?\b/.test(periodText) ? 'weekend' : /8\s*am\s*(?:-|–|to)\s*6\s*pm|daytime/.test(periodText) ? 'daytime' : /6\s*pm\s*(?:-|–|to)\s*8\s*am|evening/.test(periodText) ? 'evening' : knownDayRate ? 'daytime' : /from\s*£/i.test(original) ? 'daytime' : getCurrentPeriod();
-      const priceText = service === 'plumbing' ? rateSet.plumbing[pricePeriod] : service === 'cctv' ? rateSet.cctv : rateSet.drainage[pricePeriod];
-      const numericRate = priceText.match(/[\d.]+/)?.[0];
-      if (!numericRate) return;
-      node.nodeValue = original.replace(/£\s*\d+(?:\.\d{1,2})?(?=\s*(?:\/|per\b|\+))/gi, '£' + numericRate);
-    });
-  };
-
   const updateRegionDecorators = (region) => {
     const label = getRegionLabel(region);
 
-    document.querySelectorAll('[data-testid^="button-region-selector"]').forEach((btn) => {
-      const textNode = [...btn.childNodes].find((node) => node.nodeType === Node.TEXT_NODE && node.textContent.trim());
-      if (textNode) textNode.textContent = label;
-    });
     document.querySelectorAll('[data-pf-auto-region]').forEach((tag) => { tag.textContent = label; });
-
-    const inlineBanner = document.querySelector('[data-testid="button-region-selector-inline"]');
-    if (inlineBanner) {
-      const labelNode = inlineBanner.parentElement?.querySelector('span:not(.text-muted-foreground)');
-      if (labelNode && !labelNode.querySelector('button')) {
-        labelNode.textContent = 'Showing prices for ' + label;
-      }
-    }
 
     document.querySelectorAll('span').forEach((span) => {
       const text = span.textContent?.trim() || '';
-      if (text === 'Prices for: London' || text === 'Prices for: Reading, Slough & SE') {
-        span.textContent = 'Prices for: ' + label;
-      }
+      if (/^Prices for:\s*(?:London|Reading|Slough)/i.test(text)) span.textContent = 'Prices for: ' + label;
     });
   };
 
@@ -467,83 +456,6 @@
     const normalizedRegion = normalizeRegion(region);
     updateRegionDecorators(normalizedRegion);
     updateCurrentRateDisplay(normalizedRegion);
-    updateServiceRoots(normalizedRegion);
-  };
-
-  // ─── Region picker dropdown ────────────────────────────────────────────────
-  // The static HTML preserved the Radix menu trigger buttons but without their
-  // React dropdown logic. We recreate a lightweight dropdown here so users can
-  // manually switch between London and Regional pricing from any page.
-  let regionDropdownVisible = false;
-  let regionDropdownEl = null;
-
-  const closeRegionDropdown = () => {
-    if (regionDropdownEl) {
-      regionDropdownEl.remove();
-      regionDropdownEl = null;
-    }
-    regionDropdownVisible = false;
-  };
-
-  const openRegionDropdown = (anchorBtn) => {
-    closeRegionDropdown();
-
-    const currentRegion = getStoredRegion();
-    const dropdown = document.createElement('div');
-    dropdown.setAttribute('role', 'menu');
-    dropdown.setAttribute('aria-label', 'Select pricing area');
-    dropdown.style.cssText = [
-      'position:fixed',
-      'z-index:9999',
-      'background:hsl(var(--popover, 0 0% 100%))',
-      'color:hsl(var(--popover-foreground, 215 45% 15%))',
-      'border:1px solid hsl(var(--border, 215 15% 88%))',
-      'border-radius:0.5rem',
-      'box-shadow:0 4px 24px rgba(0,0,0,0.18)',
-      'padding:0.375rem',
-      'min-width:260px'
-    ].join(';');
-
-    const options = [
-      { value: 'london',   label: 'London',              desc: 'Greater London' },
-      { value: 'regional', label: 'Reading, Slough & SE', desc: 'Berkshire, Surrey, Kent, Herts, Bucks & more' }
-    ];
-
-    dropdown.innerHTML = [
-      `<p style="font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:hsl(var(--muted-foreground,215 15% 55%));padding:0.4rem 0.6rem 0.3rem;">Showing prices for</p>`,
-      ...options.map(({ value, label, desc }) => {
-        const active = currentRegion === value;
-        return `<button type="button" role="menuitem" data-region-pick="${escapeHtml(value)}"
-          style="display:flex;align-items:flex-start;gap:0.6rem;width:100%;padding:0.55rem 0.6rem;border-radius:0.35rem;border:none;background:${active ? 'rgba(212,175,55,0.12)' : 'transparent'};cursor:pointer;text-align:left;color:inherit;${active ? 'outline:2px solid rgba(212,175,55,0.5);outline-offset:-2px;' : ''}">
-          <span style="font-size:1rem;line-height:1.2;margin-top:0.05rem;color:hsl(var(--primary,45 80% 28%))">${active ? '✓' : '○'}</span>
-          <span style="flex:1">
-            <span style="display:block;font-size:0.875rem;font-weight:${active ? '600' : '500'};color:hsl(var(--popover-foreground,215 45% 15%))">${escapeHtml(label)}</span>
-            <span style="display:block;font-size:0.75rem;color:hsl(var(--muted-foreground,215 15% 55%));margin-top:0.1rem">${escapeHtml(desc)}</span>
-          </span>
-        </button>`;
-      })
-    ].join('');
-
-    dropdown.querySelectorAll('[data-region-pick]').forEach((item) => {
-      item.addEventListener('click', () => {
-        const picked = item.getAttribute('data-region-pick');
-        setStoredRegion(picked, 'manual');
-        applyRegionToPage(picked);
-        closeRegionDropdown();
-      });
-    });
-
-    document.body.appendChild(dropdown);
-    regionDropdownEl = dropdown;
-    regionDropdownVisible = true;
-
-    // Position below the anchor button
-    const rect = anchorBtn.getBoundingClientRect();
-    const dropW = 260;
-    let left = rect.left;
-    if (left + dropW > window.innerWidth - 8) left = window.innerWidth - dropW - 8;
-    dropdown.style.top = (rect.bottom + 6 + window.scrollY) + 'px';
-    dropdown.style.left = Math.max(8, left) + 'px';
   };
 
   const setupRegionSelectorButtons = () => {
@@ -551,23 +463,13 @@
       const label = document.createElement('span');
       label.className = 'inline-flex items-center gap-1 text-primary font-medium';
       label.dataset.pfAutoRegion = '';
-      label.textContent = getRegionLabel(getStoredRegion());
-      const nearbyText = [...(btn.parentElement?.childNodes || [])].find(node => node.nodeType === Node.TEXT_NODE && /Prices for:/i.test(node.textContent || ''));
-      if (nearbyText) nearbyText.textContent = nearbyText.textContent.replace(/Prices for:/i, 'Estimated prices for:');
+      label.textContent = getRegionLabel('regional');
       btn.replaceWith(label);
     });
   };
 
   const setupAutomaticRegionPricing = () => {
-    applyRegionToPage(getStoredRegion());
-    const source = storageGet(REGION_SOURCE_KEY);
-    if (source !== 'manual') {
-      detectRegionFromGeo().then(region => {
-        if (storageGet(REGION_SOURCE_KEY) === 'manual') return;
-        setStoredRegion(region, 'automatic');
-        applyRegionToPage(region);
-      }).catch(() => {});
-    }
+    applyRegionToPage('regional');
     void loadLiveRates();
 
     let lastPeriod = getCurrentPeriod();
@@ -575,7 +477,7 @@
       const currentPeriod = getCurrentPeriod();
       if (currentPeriod === lastPeriod) return;
       lastPeriod = currentPeriod;
-      applyRegionToPage(getStoredRegion());
+      applyRegionToPage('regional');
     };
     window.setInterval(refreshTimeBasedRates, 60000);
     document.addEventListener('visibilitychange', () => {
@@ -639,6 +541,14 @@
     settings.type = 'button'; settings.textContent = 'Cookie settings';
     settings.addEventListener('click', () => { banner.style.display = ''; document.body.classList.add('pf-consent-open'); });
     document.querySelector('footer')?.appendChild(settings);
+
+    document.addEventListener('click', (event) => {
+      const link = event.target?.closest?.('a[href]');
+      if (!link) return;
+      const href = link.getAttribute('href') || '';
+      if (/^tel:/i.test(href)) trackConversion('phone_call_click', { contact_method: 'phone' });
+      else if (/^mailto:/i.test(href)) trackConversion('email_click', { contact_method: 'email' });
+    });
   };
 
   const setupFaqAccordions = () => {
@@ -821,7 +731,7 @@
       form.addEventListener('submit', async (event) => {
         event.preventDefault();
 
-        if (!isConfigured(config.web3forms.accessKey) && !isConfigured(crmApiBaseUrl)) {
+        if (!isConfigured(config.web3forms.accessKey) && !isConfigured(crmApiBaseUrl) && !isConfigured(oldSitePaymentsApiBaseUrl)) {
           setFormStatus(statusEl, 'error', 'Form is not configured yet.');
           return;
         }
@@ -837,7 +747,7 @@
         const email = String(formData.get('email') || '').trim();
         const formType = formTypeFromElement(form);
 
-        payload.access_key = config.web3forms.accessKey;
+        if (!isConfigured(oldSitePaymentsApiBaseUrl)) payload.access_key = config.web3forms.accessKey;
         payload.subject = 'Prestige Flow ' + formType.toUpperCase() + ' submission';
         payload.from_name = config.web3forms.fromName;
         payload.botcheck = '';
@@ -852,43 +762,41 @@
         let crmPromise = Promise.resolve(null);
         try {
           if (isConfigured(crmApiBaseUrl)) crmPromise = submitCRMIntake(payload);
-          const emailPromise = isConfigured(config.web3forms.accessKey) ? fetch(config.web3forms.endpoint, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Accept: 'application/json'
-            },
-            body: JSON.stringify(payload)
-          }) : Promise.resolve(null);
+          const emailPromise = isConfigured(oldSitePaymentsApiBaseUrl)
+            ? submitOldSiteEnquiry(payload).then(result => ({ ok: true, result }))
+            : isConfigured(config.web3forms.accessKey) ? fetch(config.web3forms.endpoint, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+              body: JSON.stringify(payload)
+            }).then(async response => {
+              const result = await response.json().catch(() => ({}));
+              return { ok: response.ok && result.success === true, result };
+            }) : Promise.resolve({ ok: false, result: {} });
           const [emailResult, crmResult] = await Promise.allSettled([emailPromise, crmPromise]);
           let emailSent = false;
           let emailResponse = {};
           if (emailResult.status === 'fulfilled') {
-            emailResponse = emailResult.value ? await emailResult.value.json().catch(() => ({})) : {};
-            emailSent = Boolean(emailResult.value?.ok && emailResponse.success === true);
+            emailResponse = emailResult.value?.result || {};
+            emailSent = emailResult.value?.ok === true;
           }
           const crmSaved = crmResult.status === 'fulfilled' && crmResult.value !== null;
           if (!emailSent && !crmSaved) {
             throw new Error('Request could not be sent or saved.');
           }
-          if (!emailSent && crmSaved) {
-            setFormStatus(statusEl, 'error', 'Your request was saved in the CRM, but the email notification failed. Please call 07743 565339 if you need an immediate response.');
-            form.reset();
-            return;
-          }
+          trackConversion('generate_lead', {
+            lead_type: formType,
+            lead_destination: crmSaved && emailSent ? 'crm_and_email' : crmSaved ? 'crm' : 'email'
+          });
           if (crmResult.status === 'rejected') {
-            setFormStatus(statusEl, 'error', 'Your request reached our email, but did not sync to the CRM. Please call 07743 565339 to make sure it is logged.');
-            form.reset();
+            setFormStatus(statusEl, 'error', emailSent
+              ? 'Your request reached our email, but did not sync to the CRM. Please call 07743 565339 to make sure it is logged.'
+              : 'Your request could not be saved to the CRM. Please try again or call 07743 565339.');
             return;
           }
-          const emailLine = email
-            ? ' A confirmation copy has been requested for ' + email + '.'
-            : ' Add your email in the form to receive a confirmation copy.';
-
           setFormStatus(
             statusEl,
             'success',
-            (crmSaved ? (emailSent ? 'Thanks, your request was emailed and added to the Prestige Flow CRM.' : 'Thanks, your request was added to the Prestige Flow CRM.') : 'Thanks, your request was sent to ' + config.web3forms.businessEmail + '.' + emailLine)
+            (crmSaved ? 'Thanks, your request has been added to the Prestige Flow CRM.' + (emailSent ? ' A confirmation email has also been sent.' : '') : 'Thanks, your request has been sent to Prestige Flow.' + (email ? ' A confirmation copy will be emailed to you.' : ''))
           );
           form.reset();
         } catch (error) {
@@ -1015,6 +923,12 @@
           return Number(liveRateAmounts?.[key]?.[service]?.[ratePeriod]) || 0;
         }
       }
+      const match = /^(?:LON|REG)-(DRAIN|EMER|PLUM|CCTV)-(DAY|EVE|WKD|FIX)$/.exec(sku || '');
+      if (match) {
+        const [,service,period] = match;
+        const ratePeriod = ({DAY:'daytime',EVE:'evening',WKD:'weekend',FIX:'fixed'})[period];
+        return Number(FALLBACK_RATE_AMOUNTS[service]?.[ratePeriod]) || Number(productMap?.[sku]?.amount_pence) || 0;
+      }
       return Number(productMap?.[sku]?.amount_pence) || 0;
     };
 
@@ -1037,7 +951,7 @@
     };
 
     // ─── Step state ────────────────────────────────────────────────────────────
-    let currentStep = 1; // 1=area, 2=service, 3=details, 4=confirm
+    let currentStep = 1; // 1=service, 2=details, 3=confirm
     let selectedRegion = getRegion();
     let selectedService = '';
     let selectedPeriod = getCurrentPeriod();
@@ -1047,7 +961,7 @@
     // Find the step dots wrapper — it contains exactly the step circles
     const stepContainer = mainCard.previousElementSibling;
 
-    const STEP_LABELS = ['Select Area', 'Select Service', 'Your Details', 'Confirm & Pay'];
+    const STEP_LABELS = ['Select Service', 'Your Details', 'Confirm Request'];
 
     const renderStepIndicator = () => {
       if (!stepContainer) return;
@@ -1091,61 +1005,22 @@
     const iconArrow = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 ml-2"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>`;
     const iconBack  = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 mr-2"><path d="m15 18-6-6 6-6"/></svg>`;
 
-    const renderStep1 = () => {
-      const areas = [
-        { value: 'london',   label: 'London', desc: 'Greater London (E, EC, N, NW, W, SW, SE, WC, and outer boroughs)', badge: 'City rates' },
-        { value: 'regional', label: 'Reading, Slough & South East', desc: 'Berkshire (RG, SL), Surrey (KT), Kent (BR, DA), Herts (EN, HA), Bucks (HP, MK), Beds (LU) & surrounding areas', badge: 'Regional rates' }
-      ];
-      const areaCards = areas.map(({ value, label, desc, badge }) => {
-        const isActive = selectedRegion === value;
-        const style = isActive
-          ? 'border-color:#d4af37; background:rgba(212,175,55,0.08); box-shadow:0 0 0 2px rgba(212,175,55,0.16);'
-          : '';
-        return `<button type="button" class="w-full flex items-start gap-4 p-4 rounded-lg border cursor-pointer transition-all hover-elevate text-left" style="${style}" data-region-choice="${escapeHtml(value)}" aria-pressed="${isActive}">
-          <div class="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">${iconMapPin}</div>
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-2 flex-wrap">
-              <p class="font-medium">${escapeHtml(label)}</p>
-              <span class="text-xs px-1.5 py-0.5 rounded-full font-medium" style="background:rgba(212,175,55,0.15); color:#d4af37;">${escapeHtml(badge)}</span>
-            </div>
-            <p class="text-sm text-muted-foreground mt-0.5">${escapeHtml(desc)}</p>
-          </div>
-        </button>`;
-      }).join('');
+    const paymentResult = new URLSearchParams(window.location.search);
+    if (['received','success'].includes(paymentResult.get('payment'))) {
+      const reference = paymentResult.get('reference') || 'your booking';
+      mainCard.innerHTML = cardShell('Deposit received', 'Your payment was completed securely through Stripe.', iconCheck,
+        `<div class="rounded-lg border border-[#d4af37]/35 bg-[rgba(212,175,55,0.08)] p-4 text-sm"><p class="font-semibold mb-2">Your 10% deposit has been charged.</p><p>Your booking request is now with Prestige Flow. We will contact you to confirm the requested date and time. If we cannot accept the slot, our staff will arrange any refund manually through Stripe; your bank may take several working days to show it.</p><p class="mt-3">Booking reference: <strong>${escapeHtml(reference)}</strong></p></div>`,
+        `<a class="inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-4 py-2" href="/">Return to homepage</a>`);
+      window.history.replaceState({}, '', window.location.pathname);
+      return;
+    }
 
-      const footer = `
-        <div class="text-sm text-muted-foreground">Not sure? <a href="/areas" class="text-primary hover:underline">View our area map</a></div>
-        ${btn('Select Area & Continue' + iconArrow, 'bg-primary text-primary-foreground border border-primary-border', 'button-step1-next')}`;
-
-      mainCard.innerHTML = cardShell('Select Your Area', 'Pricing differs between London and regional areas', iconMapPin, `<div class="grid gap-3">${areaCards}</div><div class="mt-4 pf-booking-note" aria-live="polite"></div>`, footer);
-
-      mainCard.querySelectorAll('[data-region-choice]').forEach((tile) => {
-        const val = tile.getAttribute('data-region-choice');
-        tile.addEventListener('click', () => {
-          selectedRegion = val;
-          mainCard.querySelectorAll('[data-region-choice]').forEach((t) => {
-            const active = t.getAttribute('data-region-choice') === selectedRegion;
-            t.style.borderColor = active ? '#d4af37' : '';
-            t.style.background  = active ? 'rgba(212,175,55,0.08)' : '';
-            t.style.boxShadow   = active ? '0 0 0 2px rgba(212,175,55,0.16)' : '';
-            t.setAttribute('aria-pressed', String(active));
-          });
-        });
-        tile.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tile.click(); } });
-      });
-
-      mainCard.querySelector('[data-testid="button-step1-next"]').addEventListener('click', () => {
-        setRegion(selectedRegion);
-        currentStep = 2;
-        renderStepIndicator();
-        loadProductMap().then(renderStep2);
-      });
-    };
+    const renderStep1 = () => loadProductMap().then(renderStep2);
 
     const renderStep2 = (productMap) => {
       const services = ['drainage', 'emergency-drainage', 'plumbing', 'cctv-survey'];
       const period = getPeriod();
-      const regionLabel = selectedRegion === 'london' ? 'London' : 'Reading, Slough & SE';
+      const regionLabel = getRegionLabel(selectedRegion);
 
       const serviceCards = services.map((svc) => {
         const sku = buildSku(svc, selectedRegion);
@@ -1166,13 +1041,11 @@
         </label>`;
       }).join('');
 
-      const footer = `
-        ${btn(iconBack + 'Back', 'border border-[var(--button-outline)]', 'button-step2-back')}
-        ${btn('Continue' + iconArrow, 'bg-primary text-primary-foreground border border-primary-border', 'button-step2-next', 'disabled')}`;
+      const footer = `${btn('Continue' + iconArrow, 'bg-primary text-primary-foreground border border-primary-border', 'button-step2-next', 'disabled')}`;
 
       mainCard.innerHTML = cardShell(
         'Select Your Service',
-        `Prices shown for ${regionLabel} · ${PERIOD_LABEL[period]}`,
+        `Prices for ${regionLabel} · ${PERIOD_LABEL[period]}`,
         iconWrench,
         `<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4"><div class="flex flex-col gap-1.5"><label for="pf-visit-date" class="text-sm font-medium">Requested visit date</label><input id="pf-visit-date" type="date" value="${escapeHtml(customerDetails.date)}" required class="w-full rounded-md border p-2"/></div><div class="flex flex-col gap-1.5"><label for="pf-visit-time" class="text-sm font-medium">Preferred arrival time (UK time)</label><input id="pf-visit-time" type="time" value="${escapeHtml(customerDetails.time)}" required class="w-full rounded-md border p-2"/></div></div><p class="text-sm mb-4">The rate updates from your requested date and time: weekdays 8am–6pm, weekday evenings 6pm–8am, or weekends. We will confirm availability.</p><div role="radiogroup" aria-label="Service" class="grid gap-3">${serviceCards}</div><div class="mt-4 pf-booking-note" aria-live="polite"></div>`,
         footer
@@ -1232,12 +1105,6 @@
         label.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActiveService(svc); } });
       });
 
-      mainCard.querySelector('[data-testid="button-step2-back"]').addEventListener('click', () => {
-        currentStep = 1;
-        renderStepIndicator();
-        renderStep1();
-      });
-
       nextBtn2.addEventListener('click', () => {
         customerDetails.date = visitDateInput.value;
         customerDetails.time = visitTimeInput.value;
@@ -1247,7 +1114,7 @@
         if (!appointmentPeriod) { note.textContent = 'Please choose a valid visit date and time.'; return; }
         if (appointmentPeriod !== selectedPeriod) { selectedPeriod = appointmentPeriod; renderStep2(productMap); return; }
         if (!selectedService) { note.textContent = 'Please select a service to continue.'; return; }
-        currentStep = 3;
+        currentStep = 2;
         renderStepIndicator();
         renderStep3();
       });
@@ -1273,7 +1140,7 @@
             <textarea id="pf-notes" name="pf-notes" class="${inputClass} resize-none" rows="3" placeholder="Describe the issue briefly or add access notes…">${escapeHtml(customerDetails.notes)}</textarea>
           </div>
         </div>
-        <p class="text-xs text-muted-foreground mt-3">When you continue from the summary, we send these details to Prestige Flow to arrange your visit. Read our <a href="/privacy/">privacy notice</a>. An appointment is confirmed only when our team contacts you.</p>
+        <p class="text-xs text-muted-foreground mt-3">Your details are not submitted at this step. They will be sent with your booking when secure Stripe checkout is connected. Read our <a href="/privacy/">privacy notice</a>.</p>
         <div class="mt-3 pf-booking-note" aria-live="polite"></div>`;
 
       const footer = `
@@ -1289,7 +1156,7 @@
       };
       mainCard.querySelector('[data-testid="button-step3-back"]').addEventListener('click', () => {
         saveDetails();
-        currentStep = 2;
+        currentStep = 1;
         renderStepIndicator();
         loadProductMap().then(renderStep2);
       });
@@ -1310,14 +1177,14 @@
         if (!/^(GIR 0AA|[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2})$/i.test(customerDetails.postcode)) { note.textContent = 'Please enter a valid UK postcode.'; return; }
         const appointmentPeriod = getAppointmentPeriod(customerDetails.date, customerDetails.time);
         if (!appointmentPeriod || (selectedService !== 'cctv-survey' && appointmentPeriod !== selectedPeriod)) { note.textContent = 'The selected rate does not match your requested appointment time. Go back and check the visit date and UK time.'; return; }
-        currentStep = 4;
+        currentStep = 3;
         renderStepIndicator();
         Promise.all([loadProductMap(), loadPaymentLinks()]).then(([pm, links]) => renderStep4(pm, links));
       });
     };
 
     const renderStep4 = (productMap, linkMap) => {
-      const regionLabel   = selectedRegion === 'london' ? 'London' : 'Reading, Slough & South East';
+      const regionLabel   = getRegionLabel(selectedRegion);
       const period        = getPeriod();
       const sku           = buildSku(selectedService, selectedRegion);
       const priceLabel    = getPriceLabel(sku, productMap);
@@ -1326,12 +1193,13 @@
       const product = productMap[sku] || {};
       const firstHourTotalPence = Math.round(getPriceAmount(sku, productMap) * 1.2);
       const depositPence = Math.round(firstHourTotalPence / 10);
-      // Existing Stripe links charge the full listed rate. Enable a link only if
-      // its mapping explicitly identifies this exact 10% deposit amount.
-      const dynamicCrmCheckout = isConfigured(crmApiBaseUrl) && liveCheckoutEnabled;
-      const checkoutReady = dynamicCrmCheckout || (product.checkout_ready === true &&
-        product.checkout_type === 'deposit' &&
-        product.checkout_amount_pence === depositPence);
+      // The standalone booking API charges the 10% deposit now. Staff manage
+      // any refund manually in Stripe Dashboard if a requested slot is declined.
+      const dynamicBookingCheckout = isConfigured(oldSitePaymentsApiBaseUrl) && liveCheckoutEnabled;
+      // Legacy Payment Links charge the entire listed price and cannot honour
+      // the 10% deposit/refund-on-rejection booking policy, so booking never uses them.
+      const legacyStripeCheckout = false;
+      const checkoutReady = dynamicBookingCheckout || legacyStripeCheckout;
       const priceDisplay  = priceLabel || 'Price on request';
       const money = pence => '£' + (pence / 100).toFixed(2);
 
@@ -1350,90 +1218,113 @@
           ${row('Service Address', customerDetails.address + ', ' + customerDetails.postcode)}
           ${row('Rate before VAT', priceDisplay, true)}
           ${row(isFixed ? 'Fixed survey total including VAT' : 'First hour total including 20% VAT', money(firstHourTotalPence), true)}
-          ${row(isFixed ? '10% booking deposit on fixed survey' : '10% booking deposit on first hour', money(depositPence))}
-          ${row('Remaining balance', 'Due on site after the work')}
-          ${isFixed ? '' : row('Additional time or work', 'Only with your agreement; balance due on site')}
+          ${dynamicBookingCheckout ? row(isFixed ? '10% booking deposit on fixed survey' : '10% booking deposit on first hour', money(depositPence)) : legacyStripeCheckout ? row(isFixed ? 'Stripe payment' : 'First hour payment via Stripe', priceDisplay) : row('Payment', 'Secure Stripe checkout is being connected')}
+          ${dynamicBookingCheckout ? row('Remaining labour balance', 'Charged at completion only with your explicit card-storage consent; otherwise arranged manually') : ''}
+          ${isFixed ? '' : row('Additional labour', 'Billed in agreed half-hour blocks after the first hour; parts are separate')}
           ${customerDetails.name  ? row('Your Name', customerDetails.name)   : ''}
           ${customerDetails.phone ? row('Phone',     customerDetails.phone)   : ''}
           ${customerDetails.email ? row('Email',     customerDetails.email)   : ''}
         </div>
         ${customerDetails.notes ? `<div class="rounded-lg border bg-muted/30 p-3 mb-4"><p class="text-xs text-muted-foreground font-medium mb-1">Your notes:</p><p class="text-sm">${escapeHtml(customerDetails.notes)}</p></div>` : ''}
         <div class="rounded-lg border border-[#d4af37]/30 bg-[rgba(212,175,55,0.06)] p-3 text-sm">
-          <p class="font-medium mb-1">${checkoutReady ? '💳 Secure Stripe deposit checkout' : 'Booking request — no payment now'}</p>
-          <p class="text-muted-foreground text-xs">${checkoutReady ? `Stripe will collect only the ${money(depositPence)} 10% deposit shown above. The remaining balance and any additional agreed work are payable on site.` : `The deposit shown is 10% of the first hour${isFixed ? ' fixed survey fee' : ''}, including VAT. No payment is taken with this request; after confirming availability, we will arrange the deposit. The remaining balance is due on site after the work.`}${checkoutReady ? ' Your card details are handled entirely by Stripe — we never see them.' : ''}</p>
+          <p class="font-medium mb-1">${dynamicBookingCheckout ? '💳 Secure Stripe deposit payment' : legacyStripeCheckout ? '💳 Secure Stripe payment' : 'Secure online booking checkout'}</p>
+        <p class="text-muted-foreground text-xs">${dynamicBookingCheckout ? `The ${money(depositPence)} deposit is 10% of the VAT-inclusive first hour${isFixed ? ' fixed survey fee' : ''} and is charged immediately at checkout. Prestige Flow will review your requested slot. If we cannot accept it, staff will arrange a refund manually through Stripe; your bank may take several working days to show the refund. Labour beyond the first hour is charged in half-hour blocks at the agreed rate. Parts are excluded and agreed separately. Your card details are handled by Stripe.` : legacyStripeCheckout ? `Stripe will charge the displayed ${isFixed ? 'fixed survey price' : 'first-hour service rate'} plus applicable VAT at checkout. This legacy Payment Link cannot take a 10% deposit, confirm your appointment slot, or charge the later labour balance. Prestige Flow will confirm availability separately. Your card details are handled by Stripe.` : 'Secure checkout is being connected and this booking cannot be completed online yet. Call Prestige Flow on 07743 565339 to arrange and confirm your visit. Online payment will be available once the new Stripe booking flow is connected.'}</p>
         </div>
+        ${dynamicBookingCheckout ? `<label class="flex items-start gap-3 rounded-lg border p-3 mt-3 text-sm cursor-pointer" for="pf-card-charge-consent"><input id="pf-card-charge-consent" type="checkbox" class="mt-1"/><span>Optional: I authorize Prestige Flow to securely save my card for this booking and charge the agreed remaining labour balance when the job is completed. This does not change the deposit: 10% is charged now. If Prestige Flow cannot accept my requested slot, staff will arrange a refund manually. The remaining labour is charged in started half-hour blocks after the first hour; parts are excluded. Without this opt-in, the final balance will be arranged manually.</span></label>` : ''}
         <div class="mt-3 pf-booking-note" aria-live="polite"></div>`;
 
       const payBtnText = !checkoutReady
-        ? `Send Booking Request${iconArrow}`
-        : dynamicCrmCheckout
-        ? `Pay 10% first-hour deposit${iconArrow}`
+        ? 'Secure Checkout Not Connected'
+        : dynamicBookingCheckout
+        ? `Pay 10% deposit securely${iconArrow}`
+        : legacyStripeCheckout
+        ? priceLabel
+          ? `Pay ${priceLabel.replace(' + VAT', '')} + VAT via Stripe${iconArrow}`
+          : `Proceed to Stripe Checkout${iconArrow}`
         : priceLabel
         ? `Pay ${priceLabel.replace(' + VAT', '')} + VAT via Stripe${iconArrow}`
         : `Proceed to Stripe Checkout${iconArrow}`;
 
       const footer = `
         ${btn(iconBack + 'Back', 'border border-[var(--button-outline)]', 'button-step4-back')}
-        ${btn(payBtnText, 'bg-primary text-primary-foreground border border-primary-border text-base font-semibold', 'button-step4-pay', (dynamicCrmCheckout ? isConfigured(crmApiBaseUrl) : (checkoutReady ? isConfigured(destination) : (isConfigured(config.web3forms.accessKey) || isConfigured(crmApiBaseUrl)))) ? '' : 'disabled')}`;
+        ${btn(payBtnText, 'bg-primary text-primary-foreground border border-primary-border text-base font-semibold', 'button-step4-pay', (checkoutReady && (dynamicBookingCheckout ? isConfigured(oldSitePaymentsApiBaseUrl) : isConfigured(destination))) ? '' : 'disabled')}`;
 
-      mainCard.innerHTML = cardShell(checkoutReady ? 'Confirm & Pay' : 'Request Booking', checkoutReady ? 'Review your booking — then continue to secure Stripe checkout' : 'Review your details and ask us to confirm an appointment', iconCheck, bodyHtml, footer);
-
-      if (!isConfigured(destination) && !checkoutReady) {
+      mainCard.innerHTML = cardShell(checkoutReady ? 'Confirm & Pay' : 'Online Booking Setup', checkoutReady ? 'Review your booking — then continue to secure Stripe checkout' : 'Secure online booking will be available once Stripe is connected.', iconCheck, bodyHtml, footer);
+      if (!checkoutReady) {
         const note = mainCard.querySelector('.pf-booking-note');
-        if (note) note.textContent = 'No 10% deposit checkout is connected yet. You can send this booking request; we will confirm availability and arrange the deposit.';
-      } else if (!checkoutReady) {
-        const note = mainCard.querySelector('.pf-booking-note');
-        if (note) note.textContent = 'No 10% deposit checkout is connected yet. You can send this request now; our team will confirm availability and arrange the deposit. The remaining balance is due on site.';
+        if (note) note.innerHTML = 'To book now, call <a class="underline font-medium" href="tel:+447743565339">07743 565339</a>. Online checkout will be enabled before launch.';
       }
 
       mainCard.querySelector('[data-testid="button-step4-back"]').addEventListener('click', () => {
-        currentStep = 3;
+        currentStep = 2;
         renderStepIndicator();
         renderStep3();
       });
 
       mainCard.querySelector('[data-testid="button-step4-pay"]')?.addEventListener('click', async () => {
+        if (!checkoutReady) return;
         const payBtn = mainCard.querySelector('[data-testid="button-step4-pay"]');
         const note   = mainCard.querySelector('.pf-booking-note');
         payBtn.disabled = true;
         if (note) note.textContent = 'Preparing secure Stripe checkout redirect…';
         try {
-          if (!isConfigured(config.web3forms.accessKey) && !isConfigured(crmApiBaseUrl)) throw new Error('Booking service unavailable');
+          if (!isConfigured(config.web3forms.accessKey) && !isConfigured(oldSitePaymentsApiBaseUrl)) throw new Error('Booking service unavailable');
           const reference = 'PF-' + crypto.randomUUID();
+          const cardChargeConsent = mainCard.querySelector('#pf-card-charge-consent')?.checked === true;
+          const bookingDepositAmount = dynamicBookingCheckout ? money(depositPence) : 'Not applicable';
+          const bookingDepositPercentage = dynamicBookingCheckout ? 10 : 'Not applicable';
+          const remainingBalanceInstructions = dynamicBookingCheckout
+            ? 'Labour balance charged at job completion only with the customer\'s explicit stored-card consent; otherwise arranged manually. Parts are excluded.'
+            : legacyStripeCheckout
+              ? 'Existing Stripe Payment Link charges the full first-hour service rate or fixed survey price immediately. Additional labour is billed in agreed half-hour blocks and paid separately; parts are excluded.'
+              : 'No automatic saved-card balance is configured; confirm payment arrangements with the customer. Parts are excluded.';
           const bookingPayload = { ...customerDetails, form_type: 'booking',
             service: SERVICE_LABEL[selectedService], region: selectedRegion, rate_period: period,
-            sku, reference, first_hour_including_vat: money(firstHourTotalPence), deposit_amount: money(depositPence), deposit_percentage: 10,
-            remaining_balance_due: 'On site after the work; any additional time or work must be agreed with the customer.',
+            card_charge_consent: cardChargeConsent,
+            sku, reference, first_hour_including_vat: money(firstHourTotalPence), deposit_amount: bookingDepositAmount, deposit_percentage: bookingDepositPercentage,
+            remaining_balance_due: remainingBalanceInstructions,
             source: window.location.origin + '/booking/' };
           const tasks = [];
-          if (isConfigured(config.web3forms.accessKey)) tasks.push(withTimeout(fetch(config.web3forms.endpoint, {
+          if (isConfigured(config.web3forms.accessKey) && !dynamicBookingCheckout) tasks.push(withTimeout(fetch(config.web3forms.endpoint, {
             method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
             body: JSON.stringify({ access_key: config.web3forms.accessKey, subject: 'Prestige Flow booking request ' + reference,
               from_name: config.web3forms.fromName, botcheck: '', ...customerDetails, replyto: customerDetails.email,
               service: SERVICE_LABEL[selectedService], region: regionLabel, rate_period: period, rate_period_label: PERIOD_LABEL[period],
-              sku, reference, first_hour_including_vat: money(firstHourTotalPence), deposit_amount: money(depositPence), deposit_percentage: 10,
-              remaining_balance_due: 'On site after the work; any additional time or work must be agreed with the customer.',
-              payment_status: `No payment taken in this booking request. Arrange the 10% first-hour deposit (${money(depositPence)}) after confirming availability; remaining balance due on site.` })
+              sku, reference, first_hour_including_vat: money(firstHourTotalPence), deposit_amount: bookingDepositAmount, deposit_percentage: bookingDepositPercentage,
+              card_charge_consent: cardChargeConsent,
+              remaining_balance_due: remainingBalanceInstructions,
+          payment_status: dynamicBookingCheckout ? `10% deposit (${money(depositPence)}) is charged immediately at Stripe Checkout; if the requested slot is rejected, staff arrange the refund manually in Stripe. Remaining labour charged at completion only with explicit saved-card consent. Parts excluded.` : legacyStripeCheckout ? `Customer is being redirected to the existing Stripe Payment Link for the ${isFixed ? 'fixed survey rate' : 'first-hour service rate'}. Payment is immediate at Stripe checkout. Appointment availability must be confirmed separately.` : 'No payment is authorised or captured; checkout is not connected.' })
           }).then(async response => ({ kind: 'email', ok: response.ok && (await response.json().catch(() => ({}))).success === true })), 15000));
-          if (isConfigured(crmApiBaseUrl)) tasks.push(submitCRMIntake(bookingPayload).then(result => ({ kind: 'crm', ok: true, paymentUrl: result?.checkoutUrl || '' })));
+          if (dynamicBookingCheckout) tasks.push(submitOldSiteBooking(bookingPayload).then(result => ({ kind: 'old-site-payment', ok: true, emailQueued: result.emailQueued === true, paymentUrl: result.checkoutUrl, bookingReference: result.bookingReference })));
           const outcomes = await Promise.allSettled(tasks);
           const emailResult = outcomes.find(result => result.status === 'fulfilled' && result.value.kind === 'email');
-          const crmResult = outcomes.find(result => result.status === 'fulfilled' && result.value.kind === 'crm');
-          const emailSent = emailResult?.status === 'fulfilled' && emailResult.value.ok;
+          const crmResult = outcomes.find(result => result.status === 'fulfilled' && result.value.kind === 'old-site-payment');
+          const emailSent = (emailResult?.status === 'fulfilled' && emailResult.value.ok) || (crmResult?.status === 'fulfilled' && crmResult.value.emailQueued);
           const crmSaved = Boolean(crmResult);
+          if (dynamicBookingCheckout && !crmSaved) throw new Error('Your email may have been sent, but secure checkout could not be started. No payment was taken; please call 07743 565339.');
           if (!emailSent && !crmSaved) throw new Error('Booking request could not be emailed or saved.');
-          if (isConfigured(crmApiBaseUrl) && !crmSaved) {
+          trackConversion('generate_lead', {
+            lead_type: 'booking',
+            service_type: selectedService,
+            service_area: selectedRegion,
+            lead_destination: crmSaved && emailSent ? 'crm_and_email' : crmSaved ? 'crm' : 'email'
+          });
+          if (isConfigured(oldSitePaymentsApiBaseUrl) && dynamicBookingCheckout && !crmSaved) {
             mainCard.innerHTML = cardShell('Booking Request Needs Follow-up', 'The email request was sent, but this booking did not sync to the CRM. Please call us to confirm it is logged.', iconCheck, `<p class="text-sm">No payment was taken. Call <a href="tel:+447743565339">07743 565339</a> and give us your preferred visit time: ${escapeHtml(customerDetails.date)} at ${escapeHtml(customerDetails.time)} UK time.</p>`, '');
             return;
           }
-          const crmOutcome = outcomes.find(result => result.status === 'fulfilled' && result.value.kind === 'crm');
+          const crmOutcome = outcomes.find(result => result.status === 'fulfilled' && result.value.kind === 'old-site-payment');
           const dynamicPaymentUrl = crmOutcome?.status === 'fulfilled' ? crmOutcome.value.paymentUrl : '';
           if (dynamicPaymentUrl) {
             window.location.assign(dynamicPaymentUrl);
             return;
           }
-          if (!checkoutReady || dynamicCrmCheckout) {
-            mainCard.innerHTML = cardShell('Request Received', `Thank you — your booking request was ${crmSaved ? 'saved in our CRM and ' : ''}sent to Prestige Flow. We will confirm availability and arrange your 10% first-hour deposit; the remaining balance is due on site.`, iconCheck, `<p class="text-sm">No payment has been taken yet. For urgent help, call <a href="tel:+447743565339">07743 565339</a>.</p>`, '');
+          if (!checkoutReady || dynamicBookingCheckout) {
+            const checkoutFailed = crmOutcome?.status === 'fulfilled' && crmOutcome.value.checkoutError;
+            const paymentMessage = checkoutFailed
+              ? 'Your booking request was saved, but secure deposit checkout could not be started. No payment was taken. Please call 07743 565339 so we can help complete your booking.'
+              : 'No payment was authorized or taken; payment arrangements will be confirmed with you separately.';
+            mainCard.innerHTML = cardShell('Request Received', `Thank you — your booking request was ${crmSaved ? 'saved in our CRM and ' : ''}sent to Prestige Flow. It is not a confirmed appointment and no payment was taken. Call us on 07743 565339 to arrange and confirm your visit. ${paymentMessage}`, iconCheck, `<p class="text-sm">Call <a href="tel:+447743565339">07743 565339</a> to arrange your visit.</p>`, '');
             return;
           }
           const checkout = new URL(destination);
@@ -1441,7 +1332,7 @@
           checkout.searchParams.set('prefilled_email', customerDetails.email);
           window.location.assign(checkout.href);
         } catch (_) {
-          note.textContent = 'We could not send your booking details. No payment has been taken. Please try again or call 07743 565339.';
+          note.textContent = error instanceof Error ? error.message : 'We could not send your booking details. No payment has been taken. Please try again or call 07743 565339.';
           payBtn.disabled = false;
         }
       });
@@ -1572,8 +1463,111 @@
     }
   };
 
+  const setupHomepageParticles = () => {
+    const canvas = document.querySelector('[data-pf-hero-particles]');
+    if (!canvas) return;
+    const context = canvas.getContext?.('2d', { alpha: true });
+    const hero = canvas.closest('section');
+    if (!context || !hero) return;
+
+    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const particles = [];
+    let width = 0;
+    let height = 0;
+    let frame = 0;
+    let visible = true;
+    let lastFrame = 0;
+    const random = (min, max) => Math.random() * (max - min) + min;
+
+    const resize = () => {
+      const rect = hero.getBoundingClientRect();
+      width = Math.max(1, rect.width);
+      height = Math.max(1, rect.height);
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+      canvas.width = Math.round(width * dpr);
+      canvas.height = Math.round(height * dpr);
+      context.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const count = Math.min(44, Math.max(18, Math.round(width / 28)));
+      particles.length = 0;
+      for (let i = 0; i < count; i++) {
+        particles.push({
+          x: random(0, width),
+          y: random(0, height),
+          vx: reducedMotion ? 0 : random(-0.16, 0.16),
+          vy: reducedMotion ? 0 : random(-0.14, 0.14),
+          radius: random(1, 2.2),
+          gold: Math.random() > 0.28
+        });
+      }
+      draw(0);
+    };
+
+    const draw = (delta) => {
+      context.clearRect(0, 0, width, height);
+      for (let i = 0; i < particles.length; i++) {
+        const a = particles[i];
+        if (!reducedMotion && delta > 0) {
+          a.x += a.vx * delta;
+          a.y += a.vy * delta;
+          if (a.x < -4) a.x = width + 4;
+          if (a.x > width + 4) a.x = -4;
+          if (a.y < -4) a.y = height + 4;
+          if (a.y > height + 4) a.y = -4;
+        }
+        context.beginPath();
+        context.arc(a.x, a.y, a.radius, 0, Math.PI * 2);
+        context.fillStyle = a.gold ? 'rgba(212, 175, 55, 0.62)' : 'rgba(232, 239, 250, 0.48)';
+        context.fill();
+        for (let j = i + 1; j < particles.length; j++) {
+          const b = particles[j];
+          const dx = a.x - b.x;
+          const dy = a.y - b.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          if (distance > 112) continue;
+          context.beginPath();
+          context.moveTo(a.x, a.y);
+          context.lineTo(b.x, b.y);
+          context.strokeStyle = `rgba(212, 175, 55, ${(1 - distance / 112) * 0.14})`;
+          context.lineWidth = 0.7;
+          context.stroke();
+        }
+      }
+    };
+
+    const animate = (time) => {
+      frame = 0;
+      if (!visible || document.hidden || reducedMotion) return;
+      const delta = lastFrame ? Math.min(32, time - lastFrame) : 16;
+      lastFrame = time;
+      draw(delta);
+      frame = window.requestAnimationFrame(animate);
+    };
+    const start = () => {
+      if (reducedMotion) { draw(0); return; }
+      if (visible && !document.hidden && !frame) frame = window.requestAnimationFrame(animate);
+    };
+    const stop = () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      frame = 0;
+      lastFrame = 0;
+    };
+
+    resize();
+    window.addEventListener('resize', resize, { passive: true });
+    document.addEventListener('visibilitychange', () => document.hidden ? stop() : start());
+    if ('IntersectionObserver' in window) {
+      const observer = new IntersectionObserver(([entry]) => {
+        visible = entry.isIntersecting;
+        visible ? start() : stop();
+      }, { threshold: 0 });
+      observer.observe(hero);
+    }
+    start();
+  };
+
   onReady(() => {
     document.body.style.pointerEvents = '';
+    setupHomepageParticles();
     setupCookieBanner();
     setupFaqAccordions();
     setupMobileMenu();

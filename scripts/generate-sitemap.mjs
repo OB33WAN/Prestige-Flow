@@ -6,7 +6,7 @@ import { load } from 'cheerio';
 const rootDir = path.resolve(process.cwd());
 const siteUrl = process.env.SITE_URL || 'https://prestigeflow.co.uk';
 
-const skipDirs = new Set(['.git', 'node_modules', 'dist', 'docs', '.public-site']);
+const skipDirs = new Set(['.git', 'node_modules', 'dist', 'docs', '.public-site', 'admin']);
 
 function toPosixPath(value) {
   return value.split(path.sep).join('/');
@@ -90,7 +90,10 @@ async function main() {
     const route = routeFromIndex(rootDir, indexFile);
     const expectedLoc = route === '/' ? `${siteUrl}/` : `${siteUrl}${route}/`;
     const loc = $('link[rel="canonical"]').attr('href');
-    if (!loc || loc !== expectedLoc) throw new Error(`Missing or unexpected canonical in ${indexFile}: ${loc || '(missing)'}`);
+    const rel = toPosixPath(path.relative(rootDir, indexFile));
+    const cmsRoute = rel.match(/^\.cms-generated-pages\/(services|industries|areas)\/([a-z0-9]+(?:-[a-z0-9]+)*)\/index\.html$/u);
+    const acceptedCmsLoc = cmsRoute ? `${siteUrl}/${cmsRoute[1]}/${cmsRoute[2]}/` : expectedLoc;
+    if (!loc || loc !== acceptedCmsLoc) throw new Error(`Missing or unexpected canonical in ${indexFile}: ${loc || '(missing)'}`);
 
     records.push({
       route,

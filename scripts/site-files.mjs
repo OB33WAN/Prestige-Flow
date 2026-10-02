@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-export const publicDirectories = ['about', 'areas', 'assets', 'blog', 'booking', 'contact', 'cookies', 'gallery', 'gdpr', 'images', 'industries', 'privacy', 'quote', 'services', 'terms'];
+export const publicDirectories = ['about', 'admin', 'areas', 'assets', 'blog', 'booking', 'contact', 'cookies', 'gallery', 'gdpr', 'images', 'industries', 'privacy', 'quote', 'services', 'terms'];
 export async function pageFiles(root = process.cwd()) {
   const files = [path.join(root, 'index.html')];
   async function walk(dir) {
@@ -11,6 +11,8 @@ export async function pageFiles(root = process.cwd()) {
       else if (entry.name === 'index.html') files.push(file);
     }
   }
-  for (const dir of publicDirectories.filter(x => !['assets', 'images'].includes(x))) await walk(path.join(root, dir));
+  for (const dir of publicDirectories.filter(x => !['admin', 'assets', 'images'].includes(x))) await walk(path.join(root, dir));
+  try { await walk(path.join(root, '.cms-generated-pages')); }
+  catch (error) { if (error.code !== 'ENOENT') throw error; }
   return files;
 }

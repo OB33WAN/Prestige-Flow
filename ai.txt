@@ -43,11 +43,11 @@ Prestige Flow Ltd provides drainage and plumbing services. This file is a concis
 - For another postcode, use the area directory or call to confirm coverage.
 
 ## Pricing Guidance
-- Drainage, emergency drainage and blocked toilets: £140/hr + VAT, weekdays 8am–6pm; £160/hr + VAT evenings and weekends.
-- London plumbing: £105/hr + VAT weekdays 8am–6pm; £115/hr + VAT evenings and weekends.
-- Other-region plumbing: £95/hr + VAT weekdays 8am–6pm; £110/hr + VAT evenings and weekends.
-- CCTV survey: £175 + VAT fixed price.
-- Scheduled bookings require a 10% deposit. Availability and deposit payment are arranged with the customer; do not imply an appointment is confirmed before the company confirms it.
+- Drainage, emergency drainage and blocked toilets: £120/hr + VAT, Monday–Friday 8am–6pm; £140/hr + VAT evenings and weekends.
+- Plumbing: £105/hr + VAT, Monday–Friday 8am–6pm; £115/hr + VAT evenings and weekends.
+- CCTV survey: £175 + VAT fixed price, Monday to Sunday.
+- Rates are the same across covered areas. Beyond the M25, a £75 call-out covers up to 100 miles outside the M25; longer journeys are adjusted accordingly.
+- Secure online booking is being connected to Stripe. Do not describe checkout, deposits or automatic payment collection as active until that connection is verified. Customers can call 07743 565339 to book directly in the meantime.
 - Confirm travel charges, access, extra work and any bank holiday rate before the visit.
 
 ## Crawl Resources
