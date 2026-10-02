@@ -10,7 +10,7 @@ if (path.resolve(output) !== path.resolve(root, '.public-site')) throw new Error
 await fs.rm(output, { recursive: true, force: true });
 await fs.mkdir(output, { recursive: true });
 for (const dir of publicDirectories) await fs.cp(path.join(root, dir), path.join(output, dir), { recursive: true });
-for (const file of ['index.html', '404.html', 'robots.txt', 'sitemap.xml', 'manifest.json', 'favicon.jpg', 'logo.jpg', 'share-image.jpg', 'llms.txt', 'ai.txt', 'local-business-schema.jsonld', 'CNAME', '.nojekyll']) {
+for (const file of ['index.html', '404.html', 'robots.txt', 'sitemap.xml', 'manifest.json', 'favicon.jpg', 'logo.jpg', 'share-image.jpg', 'llms.txt', 'local-business-schema.jsonld', 'CNAME', '.nojekyll']) {
   await fs.copyFile(path.join(root, file), path.join(output, file));
 }
 try { await fs.cp(path.join(root, '.cms-generated-pages'), output, { recursive: true, force: true }); }
