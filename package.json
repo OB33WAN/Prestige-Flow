@@ -13,12 +13,18 @@
     "preview": "node scripts/preview.mjs",
     "stripe:import": "node scripts/import-stripe-products.mjs --file data/stripe-products.csv",
     "stripe:import:dry": "node scripts/import-stripe-products.mjs --file data/stripe-products.csv --dry-run",
-    "build": "node scripts/generate-sitemap.mjs && node scripts/build.mjs",
+    "cms:build": "node scripts/build-cms-pages.mjs",
+    "test:cms": "node scripts/test-cms-pages.mjs",
+    "build": "node scripts/build-cms-pages.mjs && node scripts/generate-sitemap.mjs && node scripts/generate-nginx-redirects.mjs && node scripts/build.mjs",
     "check": "node scripts/check-site.mjs && npm run links:audit",
-    "test:booking": "node scripts/test-booking.mjs"
+    "test:booking": "npm run build && node deploy/easypanel/configure-site-api.mjs && node scripts/test-static-stripe-booking.mjs",
+    "test:analytics": "node scripts/test-analytics-consent.mjs",
+    "test:seo:browser": "node scripts/test-seo-browser.mjs"
   },
   "devDependencies": {
     "cheerio": "^1.0.0",
+    "gray-matter": "^4.0.3",
+    "markdown-it": "^15.0.2",
     "playwright": "^1.58.2"
   },
   "dependencies": {

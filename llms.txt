@@ -40,7 +40,7 @@ Main local service pages: London, Reading and Slough. Availability for nearby po
 - https://prestigeflow.co.uk/areas/slough/
 
 ## Booking and Pricing
-Scheduled bookings require a 10% deposit. The booking form submits a request; Prestige Flow confirms availability and arranges deposit payment. Emergency services are available 24/7. See the Services page for current rates and VAT details.
+Online checkout is being connected to Stripe. Call 07743 565339 to arrange and confirm a booking until secure checkout is available. Emergency services are available 24/7. See the Services page for current rates and VAT details.
 
 ## Discovery
 - Sitemap: https://prestigeflow.co.uk/sitemap.xml

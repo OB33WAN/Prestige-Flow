@@ -123,7 +123,12 @@ for (const file of files) {
   });
   if (questions.length) graph.push({'@type':'FAQPage','@id':origin+route+'#faq',mainEntity:questions});
   if (route.startsWith('/blog/') && route !== '/blog/') {
-    graph.push({'@type':'BlogPosting',headline:$('h1').first().text(),description,url:origin+route,mainEntityOfPage:{'@id':origin+route+'#webpage'},publisher:{'@id':business['@id']},image:origin+'/share-image.jpg'});
+    const visibleDate = $('main span').map((_, el) => $(el).text().trim()).get().find(text => /^\d{1,2} [A-Z][a-z]+ \d{4}$/u.test(text));
+    const parsedDate = visibleDate ? new Date(`${visibleDate} 12:00:00 UTC`) : null;
+    const datePublished = parsedDate && !Number.isNaN(parsedDate.getTime()) ? parsedDate.toISOString().slice(0, 10) : null;
+    const hasVisibleByline = $('main').text().includes('By Prestige Flow LTD');
+    graph.push({'@type':'BlogPosting',headline:$('h1').first().text(),description,url:origin+route,mainEntityOfPage:{'@id':origin+route+'#webpage'},publisher:{'@id':business['@id']},author:{'@type':'Organization',name:'Prestige Flow LTD',url:origin+'/about/'},...(datePublished ? {datePublished,dateModified:datePublished} : {}),image:origin+'/share-image.jpg'});
+    if (!hasVisibleByline || !datePublished) console.warn(`Review visible author/date before publishing article schema: ${file}`);
   }
   $('head').append($('<script type="application/ld+json">').text(JSON.stringify({'@context':'https://schema.org','@graph':graph}).replace(/</g,'\\u003c')));
   if (route==='/') await writeIfChanged('local-business-schema.jsonld',JSON.stringify({'@context':'https://schema.org',...business},null,2)+'\n');

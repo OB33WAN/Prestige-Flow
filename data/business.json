@@ -13,7 +13,13 @@
     "postalCode": "UB4 0AY",
     "addressCountry": "GB"
   },
-  "areaServed": ["London", "Reading", "Slough", "Southeast England"],
+  "areaServed": [
+    "London",
+    "Reading",
+    "Maidenhead",
+    "Slough",
+    "Southeast England"
+  ],
   "sameAs": [
     "https://g.page/r/CWoooDggCsiQEBE",
     "https://uk.trustpilot.com/review/prestigeflow.co.uk",

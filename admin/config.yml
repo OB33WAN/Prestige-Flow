@@ -1,0 +1,81 @@
+backend:
+  name: github
+  repo: OB33WAN/Prestige-Flow
+  branch: main
+  site_domain: prestigeflow.co.uk
+  open_authoring: true
+  base_url: https://cms-auth.prestigeflow.co.uk
+  auth_endpoint: auth
+  squash_merges: true
+
+publish_mode: editorial_workflow
+site_url: https://prestigeflow.co.uk
+display_url: https://prestigeflow.co.uk
+logo_url: /logo.jpg
+media_folder: assets/cms
+public_folder: /assets/cms
+
+slug:
+  encoding: ascii
+  clean_accents: true
+  sanitize_replacement: '-'
+
+collections:
+  - name: services
+    label: Service pages
+    label_singular: Service page
+    folder: content/cms/services
+    create: true
+    extension: md
+    format: frontmatter
+    slug: '{{slug}}'
+    summary: '{{title}} · /services/{{slug}}/'
+    fields: &page_fields
+      - { label: SEO title, name: title, widget: string, required: true, hint: 'Keep it concise; up to 60 characters.' }
+      - { label: URL slug, name: slug, widget: string, required: true, hint: 'Lowercase words separated by hyphens. The build checks for existing routes.' }
+      - { label: Meta description, name: description, widget: text, required: true, hint: 'Write a unique 70–160 character summary.' }
+      - { label: Main heading (H1), name: heading, widget: string, required: true }
+      - { label: Introductory copy, name: intro, widget: text, required: true, hint: 'Explain the service clearly and locally; at least 100 characters.' }
+      - { label: Hero image, name: hero_image, widget: image, required: false }
+      - { label: Hero image alt text, name: hero_image_alt, widget: string, required: false, hint: 'Required when a hero image is selected. Describe what is visible.' }
+      - label: Page sections
+        name: sections
+        widget: list
+        min: 3
+        summary: '{{fields.heading}}'
+        fields:
+          - { label: Section heading, name: heading, widget: string, required: true }
+          - { label: Section copy, name: body, widget: markdown, required: true, hint: 'Give useful, specific information. Each section needs at least 100 characters.' }
+      - label: Related internal links
+        name: internal_links
+        widget: list
+        required: false
+        summary: '{{fields.label}} → {{fields.url}}'
+        fields:
+          - { label: Link text, name: label, widget: string, required: true }
+          - { label: Site path, name: url, widget: string, required: true, hint: 'Use an internal path such as /services/cctv-surveys/.' }
+    description: 'Draft a detailed drainage, plumbing or CCTV service landing page. Prices, canonical URLs, redirects, payment terms and structured data are controlled in code.'
+
+  - name: industries
+    label: Industry pages
+    label_singular: Industry page
+    folder: content/cms/industries
+    create: true
+    extension: md
+    format: frontmatter
+    slug: '{{slug}}'
+    summary: '{{title}} · /industries/{{slug}}/'
+    fields: *page_fields
+    description: 'Create a trade-specific industry page. Do not promise response times, accreditations or service levels unless verified.'
+
+  - name: areas
+    label: Area pages
+    label_singular: Area page
+    folder: content/cms/areas
+    create: true
+    extension: md
+    format: frontmatter
+    slug: '{{slug}}'
+    summary: '{{title}} · /areas/{{slug}}/'
+    fields: *page_fields
+    description: 'Create a useful local landing page for London and the South East. Avoid thin pages that only swap a place name.'

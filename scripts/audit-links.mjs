@@ -41,9 +41,15 @@ async function existsAsRoute(cleanHref) {
   const routePath = cleanHref.replace(/^\//, '');
   const htmlPath = path.join(root, routePath, 'index.html');
   const directPath = path.join(root, routePath);
+  const cmsGeneratedPath = path.join(root, '.cms-generated-pages', routePath, 'index.html');
 
   try {
     const stat = await fs.stat(htmlPath);
+    if (stat.isFile()) return true;
+  } catch {}
+
+  try {
+    const stat = await fs.stat(cmsGeneratedPath);
     if (stat.isFile()) return true;
   } catch {}
 

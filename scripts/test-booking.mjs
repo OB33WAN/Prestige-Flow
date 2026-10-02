@@ -6,7 +6,8 @@ try {
   const page = await browser.newPage({ viewport: { width: 390, height: 844 }, timezoneId: 'America/Los_Angeles' });
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
-  await page.addInitScript(() => { localStorage.setItem('pf_cookie_consent', 'rejected'); localStorage.setItem('pf_region','london'); localStorage.setItem('pf_region_source','manual'); });
+  await page.addInitScript(() => { localStorage.setItem('pf_cookie_consent', 'accepted'); localStorage.setItem('pf_region','london'); localStorage.setItem('pf_region_source','manual'); });
+  await page.route('https://www.googletagmanager.com/gtm.js*', route => route.fulfill({status:200,contentType:'application/javascript',body:''}));
   let submission, checkout;
   await page.route('https://api.web3forms.com/submit', async route => {
     submission = route.request().postDataJSON();
@@ -93,18 +94,27 @@ try {
     await page.getByTestId('button-step3-next').click();
     const summary = await page.locator('.pf-booking').innerText();
     assert.ok(summary.includes(money(firstHourPence)), `${region} ${period.name} ${service}: incorrect VAT-inclusive total`);
-    assert.ok(summary.includes(money(depositPence)), `${region} ${period.name} ${service}: incorrect 10% deposit`);
-    assert.match(summary, /Remaining balance[\s\S]*Due on site after the work/);
+    assert.match(summary, /No payment is authorised or taken with this booking request/);
+    assert.equal(await page.locator('#pf-card-charge-consent').count(), 0, 'Do not request card-on-file consent before checkout is connected.');
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'Mobile overflow');
     await page.getByTestId('button-step4-pay').click();
     await page.getByText('Request Received').waitFor();
+    const requestConfirmation = await page.locator('.pf-booking').innerText();
+    assert.match(requestConfirmation, /not a confirmed appointment/i, 'A request-only booking must not imply a confirmed slot.');
+    assert.match(requestConfirmation, /07743 565339/, 'Request-only booking must provide the call-to-book number.');
+    const bookingEvent = await page.evaluate(() => window.dataLayer.find(item => item.event === 'generate_lead'));
+    assert.equal(bookingEvent?.lead_type, 'booking', 'A successful booking request must emit a GA4 lead event after consent.');
+    assert.equal(bookingEvent?.service_type, service);
+    assert.equal(bookingEvent?.service_area, region);
+    assert.ok(!JSON.stringify(bookingEvent).includes('qa@example.com'), 'Booking analytics must not contain customer personal information.');
     const periodCode = service === 'cctv-survey' ? 'FIX' : period.code;
     assert.equal(submission.sku, `${region==='london'?'LON':'REG'}-${token}-${periodCode}`);
     assert.equal(submission.address, '1 Test Street');
     assert.equal(submission.first_hour_including_vat, money(firstHourPence));
-    assert.equal(submission.deposit_amount, money(depositPence));
-    assert.equal(submission.deposit_percentage, 10);
-    assert.match(submission.remaining_balance_due, /On site/);
+    assert.equal(submission.deposit_amount, 'Not applicable');
+    assert.equal(submission.deposit_percentage, 'Not applicable');
+    assert.equal(submission.card_charge_consent, false);
+    assert.match(submission.remaining_balance_due, /No automatic saved-card balance is configured/);
     assert.equal(checkout, undefined, 'A full-price Stripe link must not be used for a 10% deposit.');
   }
   let liveIntake;
@@ -127,11 +137,11 @@ try {
   for (const [key,value] of Object.entries({name:'Live Rate QA',phone:'07700900000',email:'qa@example.com',address:'1 Test Street',postcode:'RG1 1AA'})) await page.locator('#pf-'+key).fill(value);
   await page.getByTestId('button-step3-next').click();
   assert.match(await page.locator('.pf-booking').innerText(),/£130\.80/);
-  assert.match(await page.locator('.pf-booking').innerText(),/£13\.08/);
+  assert.match(await page.locator('.pf-booking').innerText(),/No payment is authorised or taken/);
   await page.getByTestId('button-step4-pay').click();
   await page.getByText('Request Received').waitFor();
   assert.equal(liveIntake.sku,'REG-PLUM-DAY');
   assert.equal(liveIntake.date,'2027-10-25');
   assert.deepEqual(errors, []);
-  console.log('PASS: full booking flow for 24 service/area/time combinations plus live CRM rate propagation, required fields, back navigation, VAT-inclusive totals, 10% deposits, on-site balances, mobile width, exact booking submissions and no full-price checkout.');
+  console.log('PASS: full booking flow for 24 service/area/time combinations plus live CRM rate propagation, required fields, back navigation, VAT-inclusive totals, explicit no-charge state before Stripe is connected, mobile width, exact booking submissions and no full-price checkout.');
 } finally { await browser.close(); }
