@@ -388,5 +388,10 @@ body.pf-consent-open [data-testid="floating-contact-buttons"] { display: none !i
   .pf-home-pricing__actions a { width: 100%; }
 }
 
-/* Override the sitewide dark navigation header styling inside the pricing section. */
-.pf-home-pricing__intro { background-color: transparent !important; }
+/* Keep the homepage pricing title in normal document flow. The sitewide `header`
+   rule is sticky, but this content header must stay above its pricing cards. */
+.pf-home-pricing__intro {
+  position: static !important;
+  top: auto !important;
+  background-color: transparent !important;
+}
