@@ -24,7 +24,7 @@
   "devDependencies": {
     "cheerio": "^1.0.0",
     "gray-matter": "^4.0.3",
-    "markdown-it": "^15.0.2",
+    "markdown-it": "^15.0.3",
     "playwright": "^1.58.2"
   },
   "dependencies": {
